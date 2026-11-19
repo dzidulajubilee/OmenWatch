@@ -28,10 +28,13 @@ class Scheduler:
         self._last_retention_check = 0
         self._last_kev_check = 0.0
         self._kev_task = None
+        self._task = None
 
     async def start(self):
         self._running = True
-        asyncio.create_task(self._loop())
+        # Kept: the event loop holds tasks only weakly, so an unreferenced
+        # loop task can be garbage-collected and polling silently stops.
+        self._task = asyncio.create_task(self._loop())
 
     def stop(self):
         self._running = False
@@ -128,6 +131,10 @@ class Scheduler:
 
         db = await get_db()
         try:
+            # Signed-in browsers whose time ran out: otherwise a row stays for
+            # every sign-in ever made. API keys (expires_at 0) never expire.
+            await db.execute("DELETE FROM sessions WHERE expires_at != 0 AND expires_at < ?", (now,))
+            await db.commit()
             cur = await db.execute("SELECT value FROM settings WHERE key = 'retention_days'")
             row = await cur.fetchone()
             retention_days = int(row["value"]) if row and row["value"] else 0

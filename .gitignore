@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Build output (.deb and wheels are published as release assets, not committed)
+dist/
+
+# Local data: databases, backups, icon cache, settings and keys
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+*.pem
+*.key
+*.crt

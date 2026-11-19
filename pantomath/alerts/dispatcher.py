@@ -75,6 +75,8 @@ def send_webhook_sync(url: str, payload: dict, allow_insecure_tls: bool = False)
     connection) that the person should be choosing deliberately, not one
     we default to.
     """
+    if not url.lower().startswith(("http://", "https://")):
+        return False, "error: only http:// and https:// webhook URLs are supported"
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url, data=body, method="POST",

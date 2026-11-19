@@ -1,7 +1,7 @@
 import pathlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -9,6 +9,8 @@ from pantomath import __version__
 from pantomath.api.routes import auth_router, broadcast, make_poll_now_route, protected_router, router
 from pantomath.database.sqlite import init_db
 from pantomath.feeds.scheduler import Scheduler
+from pantomath.ioc.db import init_ioc_db
+from pantomath.ioc.routes import ioc_protected_router, ioc_router, ioc_scheduler, siem_router
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
@@ -31,16 +33,46 @@ async def lifespan(app: FastAPI):
     finally:
         await db.close()
     await scheduler.start()
+    # The IOC database (1.0.0) is its own file: if it can't be set up, its
+    # tab and /api/v1 report why and every other part of Pantomath runs.
+    try:
+        await init_ioc_db()
+    except Exception as e:
+        print(f"[pantomath] The IOC database is unavailable: {e}")
+    await ioc_scheduler.start()
     yield
     scheduler.stop()
+    await ioc_scheduler.shutdown()
 
 
 app = FastAPI(title="Pantomath", lifespan=lifespan)
+
+# On every response. Other sites can't frame the dashboard (clickjacking
+# the Settings buttons), browsers never guess a type other than the one
+# sent, and links out to articles don't tell publishers this server's
+# address.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    "Referrer-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(protected_router)
 make_poll_now_route(scheduler)  # registers /api/sources/{id}/poll(-all) on protected_router
+app.include_router(ioc_router)
+app.include_router(ioc_protected_router)
+app.include_router(siem_router)
 
 
 @app.get("/")

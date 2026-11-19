@@ -136,7 +136,7 @@ def validate_sqlite_backup(path: pathlib.Path) -> None:
         finally:
             conn.close()
     except sqlite3.DatabaseError as e:
-        raise RestoreValidationError(f"SQLite couldn't open this file: {e}")
+        raise RestoreValidationError(f"SQLite couldn't open this file: {e}") from None
 
 
 def _checkpoint_live_database() -> None:
