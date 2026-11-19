@@ -9,6 +9,7 @@ specifically — it only ever talks to BaseConnector.
 """
 import asyncio
 import time
+import urllib.parse
 import uuid
 
 from pantomath.connectors.base import BaseConnector
@@ -62,10 +63,11 @@ class RSSConnector(BaseConnector):
             return {}
         loop = asyncio.get_event_loop()
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_ARTICLE_FETCHES)
+        feed_host = urllib.parse.urlsplit(self.source.get("url") or "").hostname or ""
 
         async def fetch_one(item):
             async with semaphore:
-                text = await loop.run_in_executor(None, fetch_article_text_sync, item.get("link", ""))
+                text = await loop.run_in_executor(None, fetch_article_text_sync, item.get("link", ""), feed_host)
                 return item["guid"], text
 
         results = await asyncio.gather(*(fetch_one(item) for item in items))

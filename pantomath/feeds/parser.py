@@ -9,7 +9,7 @@ import time
 
 def normalize_entry(entry) -> dict:
     guid = entry.get("id") or entry.get("link") or hashlib.sha1(
-        entry.get("title", "").encode()
+        entry.get("title", "").encode(), usedforsecurity=False   # an identifier, not a security hash
     ).hexdigest()
 
     published_struct = entry.get("published_parsed") or entry.get("updated_parsed")

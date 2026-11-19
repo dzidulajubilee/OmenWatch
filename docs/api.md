@@ -88,7 +88,7 @@ published).
 
 | Parameter | Meaning |
 |---|---|
-| `limit` (100), `offset` (0) | Paging |
+| `limit` (100, at most 1,000), `offset` (0) | Paging |
 | `severity` | One priority or a comma-separated list: `critical,high` |
 | `keyword` | Words to find; each must appear in the title, summary, source name, vendors, actors, indicators, Our stack matches or KEV CVEs, in any order |
 | `source_id`, `category` | One source; one source category (`general`, `government`, `vulnerability`, `news`, `malware`, `research`) |
@@ -123,10 +123,10 @@ Each item:
 
 | Endpoint | Parameters | Returns |
 |---|---|---|
-| `GET /api/iocs` | `type` (`cve`), `limit` (20), `offset`, `date_from`, `date_to`, `detail`, `q` | Distinct values, most mentioned first: `[{name, count}]`. With `detail=1` also `sources`, `severity` (highest priority), `first_seen`, `last_seen` (all time); `q` filters by text |
+| `GET /api/iocs` | `type` (`cve`), `limit` (20, at most 100,000), `offset`, `date_from`, `date_to`, `detail`, `q` | Distinct values, most mentioned first: `[{name, count}]`. With `detail=1` also `sources`, `severity` (highest priority), `first_seen`, `last_seen` (all time); `q` filters by text |
 | `GET /api/iocs/summary` | `date_from`, `date_to` | Distinct values per type: `{cve, ip, hash, email}` |
 | `GET /api/iocs/calendar` | `type`, `date_from`, `date_to` | Per day: `[{date, count, articles}]`, where `count` = distinct values seen that day |
-| `GET /api/tags` | `type` (`vendor` or `actor`), `limit` (20) | `[{name, count}]`, most mentioned first |
+| `GET /api/tags` | `type` (`vendor` or `actor`), `limit` (20, at most 500) | `[{name, count}]`, most mentioned first |
 
 To list every item mentioning an indicator, use
 `/api/items?ioc_type=ip&ioc_value=203.0.113.7`.

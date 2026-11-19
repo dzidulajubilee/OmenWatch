@@ -9,7 +9,6 @@ unlock prompt. First-run creation is protected by the setup code
 (setup_code.py); `pantomath-admin reset-settings-password` resets it on the
 server.
 """
-import hashlib
 import hmac
 import secrets
 import string

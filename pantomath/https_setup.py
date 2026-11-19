@@ -26,14 +26,12 @@ Safety principles followed throughout:
     anything that had already trusted it); an existing site symlink is
     left alone rather than recreated.
 """
-import argparse
 import ipaddress
 import os
 import pathlib
 import shutil
 import socket
 import subprocess
-import sys
 import time
 
 NGINX_SSL_DIR = pathlib.Path("/etc/nginx/ssl")

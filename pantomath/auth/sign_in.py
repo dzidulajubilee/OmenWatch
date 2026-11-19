@@ -47,13 +47,15 @@ TOUCH_EVERY = 300          # write last_seen at most every 5 minutes per session
 CACHE_SECONDS = 30         # validated sessions are cached briefly to spare the database
 MAX_FAILURES = 5
 LOCKOUT_SECONDS = 60
+FAILURE_WINDOW = 15 * 60   # failures further apart than this don't add up to a lockout
+MAX_TRACKED = 1000         # past this many addresses or cached sessions, stale entries are dropped
 MIN_PASSWORD_LENGTH = 8
 API_KEY_PREFIX = "pmk_"
 SIEM_KEY_PREFIX = "pms_"
 SIEM_ROLE = "siem"
 
 _TEAM_HASH, _TEAM_SALT = "team_password_hash", "team_password_salt"
-_failures: dict[str, list[float]] = {}                 # ip -> [failures, locked_until]
+_failures: dict[str, list[float]] = {}                 # ip -> [failures, locked_until, last failure]
 _cache: dict[str, tuple[dict, float]] = {}              # token hash -> (session, cached until)
 
 
@@ -132,15 +134,28 @@ async def clear_team_password(db) -> None:
 # else out, which a single global counter would allow.
 
 def check_rate(ip: str) -> tuple[bool, int]:
-    failures, locked_until = _failures.get(ip, [0, 0.0])
+    _, locked_until, _ = _failures.get(ip, [0, 0.0, 0.0])
     wait = int(locked_until - time.time()) + 1
     return (False, wait) if locked_until > time.time() else (True, 0)
 
 
 def record_failure(ip: str) -> None:
-    failures, _ = _failures.get(ip, [0, 0.0])
-    failures += 1
-    _failures[ip] = [0, time.time() + LOCKOUT_SECONDS] if failures >= MAX_FAILURES else [failures, 0.0]
+    now = time.time()
+    failures, _, last = _failures.get(ip, [0, 0.0, 0.0])
+    failures = (failures if now - last < FAILURE_WINDOW else 0) + 1
+    _failures[ip] = [0, now + LOCKOUT_SECONDS, now] if failures >= MAX_FAILURES else [failures, 0.0, now]
+    if len(_failures) > MAX_TRACKED:
+        _prune_failures(now)
+
+
+def _prune_failures(now: float) -> None:
+    """One entry per address would otherwise grow for as long as anyone keeps guessing from new addresses."""
+    for ip in [ip for ip, (_, locked_until, last) in _failures.items()
+               if locked_until < now and now - last >= FAILURE_WINDOW]:
+        del _failures[ip]
+    if len(_failures) > MAX_TRACKED:   # all recent: keep the newest
+        for ip in sorted(_failures, key=lambda k: _failures[k][2])[:len(_failures) - MAX_TRACKED]:
+            del _failures[ip]
 
 
 def record_success(ip: str) -> None:
@@ -206,6 +221,9 @@ async def validate(db, token: str | None, siem: bool = False) -> dict | None:
         await db.commit()
         session.update(last_seen=now, expires_at=expires)
     _cache[digest] = (session, now + CACHE_SECONDS)
+    if len(_cache) > MAX_TRACKED:
+        for key in [k for k, (_, until) in _cache.items() if until <= now]:
+            del _cache[key]
     return session
 
 

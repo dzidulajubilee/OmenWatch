@@ -1,7 +1,7 @@
 import pathlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -46,6 +46,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Pantomath", lifespan=lifespan)
+
+# On every response. Other sites can't frame the dashboard (clickjacking
+# the Settings buttons), browsers never guess a type other than the one
+# sent, and links out to articles don't tell publishers this server's
+# address.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    "Referrer-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 app.include_router(auth_router)
 app.include_router(router)

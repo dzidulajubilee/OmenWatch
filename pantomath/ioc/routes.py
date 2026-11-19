@@ -19,6 +19,7 @@ unaffected.
 import asyncio
 import csv
 import datetime
+import glob
 import io
 import json
 import os
@@ -26,7 +27,7 @@ import sqlite3
 import tempfile
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
@@ -815,7 +816,14 @@ async def backup_ioc_database():
     written), separate from the dashboard's backup. It holds the IOC feeds'
     keys, so it needs the Settings password like the main backup.
     """
-    fd, path = tempfile.mkstemp(prefix=".ioc-backup-", suffix=".db", dir=os.path.dirname(os.path.abspath(IOC_DB_PATH)))
+    folder = os.path.dirname(os.path.abspath(IOC_DB_PATH))
+    # A download that was cut off can leave its copy behind (it holds the
+    # feeds' keys): clear any over an hour old.
+    for leftover in glob.glob(os.path.join(folder, ".ioc-backup-*.db")):
+        with suppress(OSError):
+            if time.time() - os.path.getmtime(leftover) > 3600:
+                os.remove(leftover)
+    fd, path = tempfile.mkstemp(prefix=".ioc-backup-", suffix=".db", dir=folder)
     os.close(fd)
     os.remove(path)
 
@@ -827,10 +835,12 @@ async def backup_ioc_database():
             con.close()
     try:
         await asyncio.get_running_loop().run_in_executor(None, copy)
-    except sqlite3.Error as e:
-        if os.path.exists(path):
+    except BaseException as e:
+        with suppress(OSError):
             os.remove(path)
-        raise HTTPException(503, f"The IOC database couldn't be copied: {e}") from None
+        if isinstance(e, sqlite3.Error):
+            raise HTTPException(503, f"The IOC database couldn't be copied: {e}") from None
+        raise
     name = f"pantomath-ioc-backup-{time.strftime('%Y-%m-%d')}.db"
     return FileResponse(path, filename=name, media_type="application/octet-stream", background=BackgroundTask(os.remove, path))
 

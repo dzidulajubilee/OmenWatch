@@ -25,6 +25,10 @@ ICON_CACHE_DIR = os.environ.get(
 )
 FETCH_TIMEOUT = 6  # seconds — don't let a slow/dead favicon host stall a request
 NEGATIVE_CACHE_TTL = 3600  # don't retry a known-failed fetch for an hour
+MAX_ICON_BYTES = 512 * 1024
+# Served from Pantomath's own address, so only types a browser shows as an
+# image and never runs: no SVG (it can hold scripts), no HTML.
+ICON_TYPES = {"image/png", "image/x-icon", "image/vnd.microsoft.icon", "image/jpeg", "image/gif", "image/webp"}
 
 
 def derive_icon_url(source_url: str) -> str:
@@ -38,10 +42,17 @@ def _paths(source_id: str):
 
 
 def _fetch_bytes(url: str):
+    if not url.lower().startswith(("http://", "https://")):
+        raise ValueError("only http:// and https:// icon URLs are fetched")
     req = urllib.request.Request(url, headers={"User-Agent": "Pantomath/1.0"})
     with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
-        content_type = resp.headers.get("Content-Type", "image/x-icon").split(";")[0]
-        return resp.read(), content_type
+        content_type = resp.headers.get("Content-Type", "image/x-icon").split(";")[0].strip().lower()
+        if content_type not in ICON_TYPES:
+            raise ValueError(f"not an icon: {content_type}")
+        data = resp.read(MAX_ICON_BYTES + 1)
+    if len(data) > MAX_ICON_BYTES:
+        raise ValueError("icon too large")
+    return data, content_type
 
 
 def fetch_and_cache_icon_sync(source_id: str, fetch_url: str):
@@ -58,7 +69,8 @@ def fetch_and_cache_icon_sync(source_id: str, fetch_url: str):
         if os.path.exists(ctype_path):
             with open(ctype_path) as f:
                 content_type = f.read().strip() or content_type
-        return bin_path, content_type
+        # Cached before only image types were kept: never serve it as anything else.
+        return (bin_path, content_type) if content_type in ICON_TYPES else None
 
     if os.path.exists(fail_path):
         if time.time() - os.path.getmtime(fail_path) < NEGATIVE_CACHE_TTL:
