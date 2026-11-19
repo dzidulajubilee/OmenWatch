@@ -69,6 +69,9 @@ fresh install shows exactly what you configure.
   articles mention each one.
   It lives in its own database file, so a large import never slows the
   dashboard.
+  For **Wazuh**, a ready-made integration raises a Wazuh alert when a hash,
+  IP, domain, URL or email sender in an alert is a known indicator:
+  [wazuh-pantomath-integration](https://github.com/dzidulajubilee/wazuh-pantomath-integration).
 - **Sources.** Health at a glance: healthy and failing counts, last
   successful poll, items today, response time, and *why* a feed is failing
   ("HTTP 404 Not Found", "URL returned a web page, not an RSS/Atom feed",
