@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+  <img src="docs/logo-light.svg" width="64" height="64" alt="OmenWatch logo">
+</picture>
+
 # OmenWatch
 
 A lightweight, self-hosted threat intelligence dashboard. OmenWatch polls the
