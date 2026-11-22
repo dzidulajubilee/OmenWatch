@@ -303,10 +303,10 @@ async def import_sources(payload: dict):
     finally:
         await db.close()
 
-_SOURCE_STATE_ORDER = {"failing": 0, "pending": 1, "healthy": 2, "paused": 3}
+SOURCE_STATE_ORDER = {"failing": 0, "pending": 1, "healthy": 2, "paused": 3}
 
 
-def _source_health(row: dict) -> dict:
+def source_health(row: dict) -> dict:
     """
     Public, read-only view of one source for the dashboard and the header
     status indicator. Deliberately excludes the URL: feed URLs sometimes

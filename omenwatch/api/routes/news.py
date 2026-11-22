@@ -7,7 +7,7 @@ import time
 from fastapi import HTTPException
 
 from omenwatch.api.dependencies import router
-from omenwatch.api.routes.sources import _SOURCE_STATE_ORDER, _source_health
+from omenwatch.api.routes.sources import SOURCE_STATE_ORDER, source_health
 from omenwatch.database.sqlite import get_db
 from omenwatch.intelligence.priority import explain_priority
 
@@ -629,12 +629,12 @@ async def get_overview(hours: int = 24, since: float | None = None):
         cur = await db.execute(
             "SELECT id, name, category, enabled, last_status, last_fetched, last_success, failing_since FROM sources"
         )
-        health = [_source_health(dict(r)) for r in await cur.fetchall()]
-        health.sort(key=lambda h: (_SOURCE_STATE_ORDER[h["state"]], h["name"].lower()))
+        health = [source_health(dict(r)) for r in await cur.fetchall()]
+        health.sort(key=lambda h: (SOURCE_STATE_ORDER[h["state"]], h["name"].lower()))
     finally:
         await db.close()
 
-    count = {state: sum(1 for h in health if h["state"] == state) for state in _SOURCE_STATE_ORDER}
+    count = {state: sum(1 for h in health if h["state"] == state) for state in SOURCE_STATE_ORDER}
     return {
         "generated_at": now,
         "hours": hours,

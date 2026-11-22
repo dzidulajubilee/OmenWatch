@@ -1,8 +1,14 @@
 """
-Who may call what. Every route sits on one of these three routers, so a new
-route is gated by construction: router needs a signed-in viewer,
-protected_router an unlocked Settings session, auth_router nothing (sign-in
-itself and the WebSocket, which checks the cookie on its own).
+Who may call what. Every route sits on one of these routers, so a new route
+is gated by construction:
+
+  router, ioc_router          a signed-in viewer (cookie, API key or an
+                              unlocked Settings session)
+  protected_router,           an unlocked Settings session: changing sources,
+  ioc_protected_router        settings, IOC data, feeds and keys
+  siem_router (/api/v1)       a SIEM key and nothing else
+  auth_router                 nothing: sign-in itself, and the WebSocket,
+                              which checks the cookie on its own
 """
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -75,3 +81,35 @@ def client_ip(request: Request) -> str:
     if ip in ("127.0.0.1", "::1") and forwarded:
         ip = forwarded.split(",")[0].strip()
     return ip
+
+
+# ------------------------------------------------------------ IOC database
+
+ioc_router = APIRouter(dependencies=[Depends(require_viewer)])
+ioc_protected_router = APIRouter(dependencies=[Depends(require_settings_auth)])
+
+
+# ------------------------------------------------------------------- /api/v1
+
+async def require_siem_key(request: Request):
+    """
+    Only SIEM keys (Settings, Security) open /api/v1, sent as
+    `Authorization: Bearer <key>`. Browser sessions and ordinary API keys
+    don't: they keep exactly the access they had before 1.0.0.
+    """
+    if sign_in.open_dashboard():
+        return
+    token = sign_in.token_from(None, request.headers.get("authorization"))
+    if token:
+        db = await get_db()
+        try:
+            session = await sign_in.validate(db, token, siem=True)
+        finally:
+            await db.close()
+        if session:
+            return
+    raise HTTPException(401, "Send a SIEM key as 'Authorization: Bearer <key>'. Create one in OmenWatch, Settings, Security.",
+                        headers={"WWW-Authenticate": "Bearer"})
+
+
+siem_router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_siem_key)])

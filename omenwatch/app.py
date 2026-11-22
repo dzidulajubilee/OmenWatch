@@ -6,11 +6,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from omenwatch import __version__
+from omenwatch.api.dependencies import ioc_protected_router, ioc_router, siem_router
 from omenwatch.api.routes import auth_router, broadcast, make_poll_now_route, protected_router, router
+from omenwatch.api.routes.ioc import ioc_scheduler
 from omenwatch.database.sqlite import init_db
 from omenwatch.feeds.scheduler import Scheduler
 from omenwatch.ioc.db import init_ioc_db
-from omenwatch.ioc.routes import ioc_protected_router, ioc_router, ioc_scheduler, siem_router
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
