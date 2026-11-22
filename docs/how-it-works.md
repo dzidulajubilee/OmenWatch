@@ -74,39 +74,51 @@ else through the HTTP API.
 
 ```
 omenwatch/
-  app.py                 FastAPI app: startup (database, setup code, scheduler), static files, the page shell
+  app.py                 FastAPI app: startup (database, setup code, workers), static files, the page shell
   cli.py                 omenwatch-admin: setup-code, reset-settings-password, sign-out-everyone, setup-https
   https_setup.py         nginx + self-signed HTTPS in front of OmenWatch
-  api/routes.py          every HTTP endpoint, the sign-in gate, the WebSocket
+  core/
+    config.py            every OMENWATCH_* setting
+    logging.py           the service's log
+    security.py          security headers on every response
+    live.py              open WebSockets and broadcast()
+  api/
+    dependencies.py      every access check and the routers that carry them
+    routes/              one module per area: auth, news, sources, watchlist, alerts,
+                         system, live (the WebSocket), ioc, siem (/api/v1)
   auth/
     sign_in.py           dashboard sign-in: team password, sessions, API keys, attempt limits
     settings_auth.py     the Settings password, recovery code, Settings tokens
     setup_code.py        the one-time first-run setup code
-  connectors/
-    base.py              the connector contract: fetch -> normalize -> validate -> store
-    registry.py          connector type -> class
-    rss.py               the RSS/Atom connector (the only one today)
-  feeds/
-    rss.py               fetching a feed: limits, timeouts, readable errors
-    parser.py            feedparser entry -> flat item dict
+  ingestion/
+    fetcher.py           fetching a feed: limits, timeouts, readable errors
     article_fetcher.py   deep extraction: an article page -> plain text
-    scheduler.py         polling, retention, the daily KEV download
-  intelligence/
+    connectors/          the connector contract (fetch -> normalize -> validate -> store),
+                         the registry, and the RSS/Atom connector
+  news/
+    parser.py            feedparser entry -> flat item dict
     scoring.py           wording rating (High / Medium / Low keywords)
     tagging.py           vendors and threat actors
-    ioc_extraction.py    CVEs, IP addresses, hashes, emails
     watchlist.py         Our stack matching
     kev.py               CISA KEV download, storage and marking
     priority.py          Critical / High / Medium / Low, and the reasons
     reprocessor.py       re-running the analysis on stored items
+  intelligence/
+    extraction.py        CVEs, IP addresses, hashes, emails
     enrichment.py        source icons
+  ioc/                   the IOC database: normalizing, storing, lookup, feeds, hit counts
+  workers/
+    main.py              the two background workers, created once
+    news_worker.py       polling, retention, the daily KEV download
+    ioc_worker.py        IOC feeds and expiry
   alerts/
     matcher.py           does a new item match a webhook's rules?
     dispatcher.py        building and sending webhook payloads
     webhook_keys.py      optional per-webhook protection keys; the PBKDF2 helper
   database/
-    models.py            schema (plain SQL) and the list of column migrations
-    sqlite.py            connections, migrations, one-time backfills
+    models.py            schema (plain SQL)
+    sqlite.py            connections and startup
+    migrations/          numbered schema steps (PRAGMA user_version)
     restore.py           validating and swapping in a backup
 frontend/
   pages/dashboard.html   the whole page shell: sign-in page, header, sidebar, every view
@@ -245,7 +257,7 @@ before the phrase was recorded), or `No warning words found`.
 Tags are found in the title and article text. Edit the lists to change
 them, then reprocess.
 
-### 5.4 Indicators (`ioc_extraction.py`)
+### 5.4 Indicators (`intelligence/extraction.py`)
 
 | Type | Rule |
 |---|---|
@@ -366,20 +378,27 @@ List-like columns (vendors, cves, watch_hits…) are comma-separated strings;
 queries split them with a recursive CTE when counting distinct values.
 Indexes: `items(fetched_at)`, `items(source_id)`, `items(severity)`.
 
-**Migrations.** New columns are listed in `MIGRATIONS` and added with
-`ALTER TABLE` on startup when missing, so any older database, including a
-restored backup, is brought up to date automatically. One-time data fixes
-(such as the 0.8.0 priority backfill) run right after.
+**Migrations** (`database/migrations/`). Each database records its schema
+version in SQLite's `PRAGMA user_version` and runs each numbered step once,
+in order. Step 1 is the baseline up to 2.0: create missing tables, add the
+columns added before 2.0 when missing, the 0.8.0 priority backfill, then the
+indexes. It copes with any older database, including a restored backup
+(which brings its own, lower version). A backup from a newer OmenWatch is
+left as it is. A schema change is a new step at the end of the list.
 
 ## 9. The API layer
 
-All endpoints are in `api/routes.py`, on three routers:
+Endpoints live in `api/routes/`, one module per area. Every route sits on a
+router from `api/dependencies.py`, which carries its access check:
 
 | Router | Access | Contents |
 |---|---|---|
 | `auth_router` | anyone | sign-in status, sign in, first-run setup, recovery, sign out, the WebSocket (which checks the cookie itself) |
 | `router` | signed in | every data endpoint (items, indicators, overview, analytics, tags, KEV lookups, icons, Settings unlock) |
 | `protected_router` | Settings token | sources, settings, Our stack, KEV settings, webhooks, sign-ins and API keys, team password, backup and restore, reprocessing |
+| `ioc_router` | signed in | the IOC database tab: browsing, lookups, details |
+| `ioc_protected_router` | Settings token | adding and editing indicators, IOC feeds, the allowlist, SIEM keys, the IOC backup |
+| `siem_router` | SIEM key | `/api/v1`: lookup, export, health |
 
 `router` carries the sign-in check as a router-wide dependency, so a new
 data endpoint is protected without anyone having to remember it.
@@ -524,14 +543,14 @@ frontend contracts checked in the source. Conventions:
 ## 15. Extending OmenWatch
 
 - **Tuning detection:** edit the keyword lists in `scoring.py`, the vendor
-  and actor lists in `tagging.py`, or the patterns in `ioc_extraction.py`.
+  and actor lists in `tagging.py`, or the patterns in `intelligence/extraction.py`.
   Then run Settings, Storage, Reprocess all.
 - **A new source type:** subclass `BaseConnector` (`fetch`, `normalize`,
   `store`; `validate` has a default) and register it in
   `connectors/registry.py`. The scheduler only calls `update()`, so it
   needs no changes. See [ARCHITECTURE.md](ARCHITECTURE.md#extensibility-the-connector-contract).
 - **A new indicator type:** add the pattern, a column (with a `MIGRATIONS`
-  entry), the type in `_IOC_COLUMNS` in `api/routes.py`, and its labels in
+  entry), the type in `_IOC_COLUMNS` in `api/routes/news.py`, and its labels in
   `app.js` (`IOC_TYPE_LABELS` and the related tables), plus a tab in
   `dashboard.html`.
 - **A new list page:** add a section to `dashboard.html` (the feed-page

@@ -11,30 +11,45 @@
 ```
 OmenWatch/
 ├── omenwatch/                 # the installable Python package
-│   ├── connectors/
-│   │   ├── base.py        # BaseConnector — the extensibility contract
-│   │   ├── rss.py          # RSSConnector — the only implementation in v1.0
-│   │   └── registry.py    # connector_type -> class lookup
-│   ├── feeds/
-│   │   ├── rss.py         # blocking feedparser fetch, run in a thread executor
-│   │   ├── parser.py      # normalizes feedparser entries into a flat dict
-│   │   └── scheduler.py   # background asyncio loop, connector-agnostic
-│   ├── intelligence/
-│   │   ├── scoring.py     # keyword-based high/medium/low severity tagging
-│   │   └── enrichment.py  # derives a source's favicon URL from its domain
-│   ├── database/
-│   │   ├── models.py      # SQL schema (sources, items, settings)
-│   │   └── sqlite.py      # connection helper + startup init/seed logic
+│   ├── app.py              # FastAPI app: startup and shutdown, static files, the page shell
+│   ├── cli.py              # omenwatch-admin
+│   ├── core/
+│   │   ├── config.py      # every OMENWATCH_* setting, read in one place
+│   │   ├── logging.py     # the service's log (to the journal)
+│   │   ├── security.py    # security headers on every response
+│   │   └── live.py        # open WebSockets and broadcast()
 │   ├── api/
-│   │   └── routes.py      # REST endpoints + the /ws WebSocket
+│   │   ├── dependencies.py  # every access check, and the routers that carry them
+│   │   └── routes/        # auth, news, sources, watchlist, alerts, system, live, ioc, siem (/api/v1)
+│   ├── auth/              # sign-in, the Settings password, the setup code
+│   ├── ingestion/
+│   │   ├── fetcher.py     # blocking feed fetch with limits, run in a thread executor
+│   │   ├── article_fetcher.py  # deep extraction: an article page -> plain text
+│   │   └── connectors/    # base.py (the contract), registry.py, rss.py (the only one today)
+│   ├── news/
+│   │   ├── parser.py      # normalizes feedparser entries into a flat dict
+│   │   ├── scoring.py, tagging.py, priority.py  # rating, vendors and actors, priority
+│   │   ├── watchlist.py, kev.py  # Our stack and CISA KEV
+│   │   └── reprocessor.py # re-running the analysis on stored items
+│   ├── intelligence/
+│   │   ├── extraction.py  # CVEs, IPs, hashes, emails from text
+│   │   └── enrichment.py  # a source's favicon
 │   ├── ioc/               # the IOC database (1.0.0), its own ioc.db file
 │   │   ├── normalize.py   # what a value is, and its one canonical spelling
 │   │   ├── models.py, db.py  # ioc.db schema and get_ioc_db()
 │   │   ├── store.py       # duplicates, sightings, confidence, expiry, allowlist
-│   │   ├── feeds.py       # IOC feeds: bounded, conditional download; text/CSV parsing
-│   │   ├── scheduler.py   # the IOC feeds' own timer
-│   │   └── routes.py      # the IOC tab's /api/ioc routes and the /api/v1 lookup API
-│   └── app.py              # FastAPI app, mounts frontend/, wires it together
+│   │   ├── lookup.py      # the lookup the IOC tab and /api/v1 share
+│   │   └── feeds.py, readers.py, parsing.py, hits.py  # IOC feeds and SIEM hit counts
+│   ├── database/
+│   │   ├── models.py      # SQL schema (sources, items, settings...)
+│   │   ├── sqlite.py      # connections and startup (migrations, seeding)
+│   │   ├── migrations/    # numbered schema steps for omenwatch.db and ioc.db
+│   │   └── restore.py     # validating and swapping in a backup
+│   ├── workers/
+│   │   ├── main.py        # the two workers, created once
+│   │   ├── news_worker.py # polling, retention, the daily KEV download
+│   │   └── ioc_worker.py  # the IOC feeds' own timer and expiry
+│   └── alerts/            # webhook matching and sending
 │
 ├── frontend/
 │   ├── pages/dashboard.html   # page shell: sidebar nav + all views + modal
@@ -123,7 +138,7 @@ unchanged, so nothing depending on it breaks). Three rules matter:
   "new today" and "critical in the last 24 hours". The effective time is
   the feed's own date unless it is more than an hour later than the fetch
   (a publisher's wrong clock), in which case the fetch time is used —
-  `_EFFECTIVE_TS` in `api/routes.py`, mirrored by `effectiveTs()` in
+  `_EFFECTIVE_TS` in `api/routes/news.py`, mirrored by `effectiveTs()` in
   `frontend/widgets/feed-list.js`. Published dates are parsed with
   `calendar.timegm` (feedparser's parsed dates are UTC; `time.mktime`
   shifted them by the server's UTC offset).
@@ -303,7 +318,7 @@ inside it. The news side (RSS sources, items, the Indicators tab,
   executor. `IocScheduler` is its own asyncio task, so a slow list can't delay
   RSS polling. Keys are stored in `ioc_feeds.key_value` and never returned or
   logged.
-- **Three gates** (`ioc/routes.py`): browsing and looking up need sign-in
+- **Three gates** (`api/dependencies.py`): browsing and looking up need sign-in
   (`require_viewer`); changing anything needs the Settings password
   (`require_settings_auth`), since SIEMs and firewalls act on it; `/api/v1`
   needs a **SIEM key**: a `sessions` row with role `siem`. `sign_in.validate()`
@@ -419,16 +434,13 @@ installed. Version lives in exactly one place: `pyproject.toml`'s
 `[project] version`. `build.sh` reads it from there automatically, so
 there's nothing else to bump on a release.
 
-Each subpackage's `__init__.py` re-exports its public API (e.g.
-`from omenwatch.connectors import BaseConnector, RSSConnector` instead of
-reaching into `omenwatch.ingestion.connectors.rss` directly) — except
-`omenwatch/feeds/__init__.py`, which deliberately does NOT re-export
-`Scheduler`: doing so would create a real circular import
-(`feeds → connectors → feeds.parser → feeds/__init__ again`), caught by
-the test suite the first time it was tried. Import `Scheduler` directly
-from `omenwatch.workers.news_worker` instead — that one line of nuance is
-called out in the module's own docstring so it isn't rediscovered the
-hard way twice.
+Package `__init__.py` files hold a docstring and nothing else: import from
+the module that defines a name (`from omenwatch.workers.news_worker import
+Scheduler`). Re-exporting from package files caused a real circular import
+before 2.0 (`feeds → connectors → feeds.parser → feeds/__init__ again`);
+with no re-exports there is nothing to trip over. The exception is
+`api/routes/__init__.py`, which imports every route module so their routes
+register.
 
 The top-level `omenwatch/__init__.py` deliberately does NOT import
 `omenwatch.app` — doing so would make every `import omenwatch.<anything>`
@@ -639,7 +651,7 @@ prerequisite for accurate page counts — a "page 3 of 708" number is
 meaningless if the actual displayed content is then further filtered
 client-side afterward. `GET /api/items/count` mirrors every filter `GET
 /api/items` accepts (both go through the same
-`_build_item_conditions()` in `omenwatch/api/routes.py`, so they can
+`_build_item_conditions()` in `omenwatch/api/routes/news.py`, so they can
 never silently drift out of sync with each other) and returns a total,
 which the frontend uses to compute page count. `severity` now accepts a
 comma-separated list (`"high,medium"`) for the multi-select toggle,

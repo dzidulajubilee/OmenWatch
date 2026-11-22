@@ -100,7 +100,7 @@ built for more. To add one:
    `BaseConnector`, not against RSS specifically. `POST /api/sources`
    will accept the new `connector_type` automatically once it's
    registered (remove the "only rss" validation in
-   `omenwatch/api/routes.py:add_source` if you're intentionally opening
+   `omenwatch/api/routes/sources.py:add_source` if you're intentionally opening
    this up beyond v1.0's scope).
 
 See `omenwatch/ingestion/connectors/rss.py` for a complete reference implementation,
