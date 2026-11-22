@@ -68,61 +68,29 @@ if id -u pantomath >/dev/null 2>&1; then
     userdel pantomath 2>/dev/null || true
 fi
 
-# Isolated Python venv
-if [ ! -d /opt/omenwatch/venv ]; then
-    python3 -m venv /opt/omenwatch/venv
+# 2.0 ships its own Python in /opt/omenwatch/python with every dependency
+# already installed, so there is nothing to build here and no network needed.
+# Remove what 1.x built on this machine: the venv, its wheels and pip's leftovers.
+rm -rf /opt/omenwatch/venv /opt/omenwatch/wheelhouse /opt/omenwatch/build /opt/omenwatch/*.egg-info
+# A loopback-only override written by 1.x's setup-https starts the old venv.
+OVERRIDE=/etc/systemd/system/omenwatch.service.d/override.conf
+if [ -f "$OVERRIDE" ] && grep -q "/opt/omenwatch/venv/" "$OVERRIDE"; then
+    sed -i 's#/opt/omenwatch/venv/bin/python3 -m#/opt/omenwatch/python/bin/python3 -I -m#' "$OVERRIDE"
 fi
-
-# setuptools reuses /opt/omenwatch/build between installs, so a module deleted
-# in a newer release would otherwise stay in the copy omenwatch-admin runs.
-# Clear its leftovers before building and again afterwards.
-clean_build() {
-    rm -rf /opt/omenwatch/build /opt/omenwatch/*.egg-info
-}
-clean_build
-
-# Install the dependencies, then the app itself with --force-reinstall: pip
-# skips an app whose version number is unchanged (a rebuilt package, a
-# hotfix), which would leave the previous code in place.
-pip_install() {
-    /opt/omenwatch/venv/bin/pip install --quiet "$@"
-}
-install_offline() {
-    pip_install --no-index --find-links=/opt/omenwatch/wheelhouse /opt/omenwatch \
-        && pip_install --no-index --find-links=/opt/omenwatch/wheelhouse --no-deps --force-reinstall /opt/omenwatch
-}
-install_online() {
-    pip_install --upgrade pip \
-        && pip_install /opt/omenwatch \
-        && pip_install --no-deps --force-reinstall /opt/omenwatch
-}
-
-# Prefer the wheelhouse bundled in the package — this box may have no route
-# to pypi.org (air-gapped / restricted-egress hosts like IDS sensors are a
-# real deployment target for this tool), so don't require internet access
-# for something as basic as installing the app. Fall back to a normal
-# networked pip install if the wheelhouse wasn't shipped, or if it has no
-# wheels for this Python (e.g. a Python newer than the one the package was
-# built against).
-if [ -d /opt/omenwatch/wheelhouse ] && [ -n "$(ls -A /opt/omenwatch/wheelhouse 2>/dev/null)" ] && install_offline; then
-    :
-else
-    echo "Offline install from the bundled wheelhouse was not possible; installing from the Python package index instead." >&2
-    clean_build
-    install_online
-fi
-clean_build
 
 # Only the data directory belongs to the service user. The code stays owned
 # by root: root runs it whenever an admin uses `sudo omenwatch-admin`, so the
 # service account must not be able to rewrite it.
 chown -R root:root /opt/omenwatch
 
-# Without this, omenwatch-admin only exists at /opt/omenwatch/venv/bin/
-# and needs its full path typed out every time — not what anyone
-# expects from a command meant to be run occasionally, by hand, on a
-# real terminal (reset-settings-password, setup-https).
-ln -sf /opt/omenwatch/venv/bin/omenwatch-admin /usr/local/bin/omenwatch-admin
+# The admin command, on the PATH. -I: ignore the caller's directory and
+# PYTHON* variables, since this usually runs as root.
+rm -f /usr/local/bin/omenwatch-admin
+cat > /usr/local/bin/omenwatch-admin <<'ADMIN'
+#!/bin/sh
+exec /opt/omenwatch/python/bin/python3 -I -m omenwatch.cli "$@"
+ADMIN
+chmod 755 /usr/local/bin/omenwatch-admin
 
 # Where the dashboard answers: once `omenwatch-admin setup-https` has run and
 # the service is restricted to 127.0.0.1, only the HTTPS address works.
@@ -141,7 +109,7 @@ systemctl stop omenwatch.service 2>/dev/null || true
 # already has a Settings password. Run as the service user so the database
 # files stay owned by it.
 SETUP_CODE=$(runuser -u omenwatch -- env OMENWATCH_DB=/var/lib/omenwatch/omenwatch.db \
-    /opt/omenwatch/venv/bin/omenwatch-admin setup-code --bare 2>/dev/null || true)
+    /usr/local/bin/omenwatch-admin setup-code --bare 2>/dev/null || true)
 systemctl start omenwatch.service
 
 echo ""

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "omenwatch"
-version = "2.0.0b2"
+version = "2.0.0b3"
 description = "Threat intelligence RSS feed aggregator dashboard"
 readme = "README.md"
 license = { text = "MIT" }

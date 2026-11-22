@@ -3,7 +3,6 @@ Version: 1.5.1
 Section: net
 Priority: optional
 Architecture: amd64
-Depends: python3, python3-venv
 Conflicts: pantomath
 Replaces: pantomath
 Maintainer: OmenWatch Project <noreply@example.com>

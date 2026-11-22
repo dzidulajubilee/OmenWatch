@@ -25,11 +25,12 @@ Installing, securing, running and upgrading OmenWatch. For using it, see the
 
 ## 1. Requirements
 
-- Linux on x86_64 with systemd. The Debian/Ubuntu package is built and tested
-  on Ubuntu 24.04.
-- Python 3.10 to 3.14 with `venv` (Debian/Ubuntu: the `python3-venv`
-  package). The package bundles Python wheels for exactly these versions, so
-  it installs without internet access.
+- Linux on x86_64 with systemd. The package is tested on Ubuntu 18.04 to
+  26.10 with `scripts/test-ubuntu-matrix.sh`, which installs, reinstalls and
+  purges it in a fresh LXD container per release.
+- No system Python: the package brings its own (Python 3.13, in
+  `/opt/omenwatch/python`) with every dependency installed, so it installs
+  without internet access.
 - Disk: the database grows with history; a few hundred MB covers a long
   time for a typical set of feeds. Restoring a backup needs free space for
   the upload plus a copy of the current database.
@@ -41,18 +42,17 @@ Installing, securing, running and upgrading OmenWatch. For using it, see the
 **From the repository** (recommended; the package is built on the machine):
 
 ```bash
-sudo apt install python3-venv git
+sudo apt install git curl
 git clone https://github.com/dzidulajubilee/OmenWatch.git
 cd OmenWatch
 ./build.sh deb                      # -> dist/omenwatch_<version>_amd64.deb
 sudo apt install ./dist/omenwatch_*_amd64.deb
 ```
 
-Install with `apt install ./…`, not `dpkg -i`: only `apt` installs the
-package's dependencies (such as `python3-venv`).
-
-`build.sh` reads the version with Python 3.11's `tomllib`. On Python 3.10
-(Ubuntu 22.04), pass it yourself: `VERSION=0.9.0 ./build.sh deb`.
+`build.sh` needs `curl`, `tar` and `dpkg-deb`, not Python: it downloads a
+pinned Python build once (checked against its SHA-256) into
+`installer/.cache/` and installs the dependencies into it from
+`installer/wheelhouse/`.
 
 **A ready-made package:** copy it to the server, compare `sha256sum` with the
 published checksum (a truncated copy fails halfway through unpacking), then
@@ -62,9 +62,8 @@ published checksum (a truncated copy fails halfway through unpacking), then
 
 1. creates the `omenwatch` system user (no login shell, no home directory);
 2. creates `/var/lib/omenwatch` for the data, owned by that user;
-3. builds a private Python environment in `/opt/omenwatch/venv` from the
-   bundled wheels (falling back to the internet only if the package was built
-   without them);
+3. uses the Python shipped in `/opt/omenwatch/python` (nothing is built or
+   downloaded; an upgrade from 1.x removes the old `/opt/omenwatch/venv`);
 4. links `omenwatch-admin` into `/usr/local/bin`;
 5. installs, enables and starts the `omenwatch` systemd service;
 6. on a new install, creates the **setup code** and prints it (next section).
@@ -483,7 +482,6 @@ never returned by the API or written to the log.
 | A SIEM gets 401 from `/api/v1` | It needs a SIEM key (Settings, Security), not an API key, sent as `Authorization: Bearer pms_…` |
 | Desktop notifications blocked | They need HTTPS (section 6) |
 | The service won't start after a manual database operation | Files in `/var/lib/omenwatch` owned by root: `sudo chown -R omenwatch:omenwatch /var/lib/omenwatch` |
-| `dpkg -i` left the package half-installed ("python3-venv" or another dependency missing) | Run `sudo apt install -f`, or reinstall with `sudo apt install ./omenwatch_<version>_amd64.deb`, which installs the dependencies |
 | `omenwatch-admin` says it can't open the database | The data belongs to the `omenwatch` user: run it with `sudo`, for example `sudo omenwatch-admin setup-code` |
 | After `setup-https`, `http://host:7373` no longer answers | Expected: the service now listens on 127.0.0.1 only. Use `https://host/` |
 | Restore refused | Not a OmenWatch database, over 2 GB, or not enough free disk space for the upload plus a safety copy |

@@ -44,7 +44,7 @@ DEFAULT_SITE_ENABLED = SITES_ENABLED_DIR / "default"
 DISABLED_DEFAULT_NAME = "default.disabled-by-omenwatch"
 SYSTEMD_OVERRIDE_DIR = pathlib.Path("/etc/systemd/system/omenwatch.service.d")
 SYSTEMD_OVERRIDE_FILE = SYSTEMD_OVERRIDE_DIR / "override.conf"
-VENV_PYTHON = "/opt/omenwatch/venv/bin/python3"
+PYTHON = "/opt/omenwatch/python/bin/python3"  # bundled with the package (2.0)
 
 NGINX_CONFIG_TEMPLATE = """server {{
     listen 80;
@@ -278,7 +278,7 @@ def setup_https(port: int = 7373, assume_yes: bool = False, renew_certificate: b
             "[Service]\n"
             "Environment=\n"
             "ExecStart=\n"
-            f"ExecStart={VENV_PYTHON} -m uvicorn omenwatch.app:app --host 127.0.0.1 --port {port}\n"
+            f"ExecStart={PYTHON} -I -m uvicorn omenwatch.app:app --host 127.0.0.1 --port {port}\n"
         )
         print(f"Wrote systemd override: {SYSTEMD_OVERRIDE_FILE}")
         if _try_systemctl("daemon-reload") and _try_systemctl("restart", "omenwatch"):

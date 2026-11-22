@@ -8,14 +8,14 @@ case "$1" in
     remove|purge)
         # Everything the postinst built outside the package's own file list
         # (dpkg only removes files it installed). Nothing here is user data.
-        rm -rf /opt/omenwatch/venv /opt/omenwatch/build /opt/omenwatch/*.egg-info
+        rm -rf /opt/omenwatch/python /opt/omenwatch/venv /opt/omenwatch/build /opt/omenwatch/*.egg-info
         rm -f /usr/local/bin/omenwatch-admin
         rmdir /opt/omenwatch 2>/dev/null || true
         systemctl daemon-reload || true
         ;;
     *)
         # upgrade / failed-upgrade / abort-*: the new version is (being) put in
-        # place, so leave its venv and the admin command alone.
+        # place, so leave its Python and the admin command alone.
         systemctl daemon-reload || true
         ;;
 esac

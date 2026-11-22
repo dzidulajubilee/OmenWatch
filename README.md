@@ -151,10 +151,10 @@ stack or the catalog changes. To change the wording rules, edit the lists in
 
 ## Requirements
 
-- Linux on x86_64 with systemd. The Debian/Ubuntu package is built and
-  tested on Ubuntu 24.04.
-- Python 3.10 to 3.14 with `venv` (on Debian/Ubuntu: `python3-venv`). The
-  package bundles wheels for exactly these versions so it installs offline.
+- Linux on x86_64 with systemd. The package is tested on Ubuntu 18.04 to
+  26.10 (`scripts/test-ubuntu-matrix.sh`).
+- Nothing else: the package brings its own Python 3.13 with every
+  dependency installed, so it needs no system Python and no internet access.
 - nginx only if you want HTTPS through `omenwatch-admin setup-https`, which
   installs it for you.
 
@@ -163,19 +163,17 @@ stack or the catalog changes. To change the wording rules, edit the lists in
 Build the package from the repository, then install it:
 
 ```bash
-sudo apt install python3-venv git
+sudo apt install git curl
 git clone https://github.com/dzidulajubilee/OmenWatch.git
 cd OmenWatch
 ./build.sh deb                                  # -> dist/omenwatch_<version>_amd64.deb
 sudo apt install ./dist/omenwatch_*_amd64.deb
 ```
 
-Use `apt install ./…`, not `dpkg -i`: only `apt` fetches the package's
-dependencies (such as `python3-venv`). With `dpkg -i` on a fresh server the
-package is left half-installed; if that happens, run `sudo apt install -f`.
-
-`build.sh` reads the version with Python 3.11's `tomllib`. On Python 3.10
-(Ubuntu 22.04), pass it yourself: `VERSION=0.9.0 ./build.sh deb`.
+`build.sh` downloads the pinned Python build once (checked against its
+SHA-256) into `installer/.cache/` and installs the dependencies into it from
+the wheels in `installer/wheelhouse/`. `sudo dpkg -i` works as well as
+`sudo apt install ./…`.
 
 If you copy a ready-made `.deb` onto a server instead, check its
 `sha256sum` against the published one first. A truncated download fails
@@ -185,7 +183,7 @@ The installer:
 - prints a one-time **setup code** at the end: the first-run page needs it
   (see First steps)
 - creates a dedicated unprivileged `omenwatch` system user
-- sets up an isolated Python venv under `/opt/omenwatch/venv` from the bundled wheels
+- puts its private Python in `/opt/omenwatch/python` (nothing is built or downloaded)
 - installs, enables and starts the `omenwatch` systemd service
 
 ## First steps
