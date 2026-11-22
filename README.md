@@ -18,9 +18,9 @@ fresh install shows exactly what you configure.
 [administration](docs/administration.md) ·
 [how it works](docs/how-it-works.md) · [API](docs/api.md)
 
-> Screenshots use made-up sample data: no real vendors or incidents, CVE
-> numbers in the CVE-2099 range, and IP addresses from the ranges reserved
-> for documentation.
+> Screenshots use made-up sample data: no real vendors, threat actors or
+> incidents, CVE numbers in the CVE-2099 range, and IP addresses from the
+> ranges reserved for documentation.
 
 ## What it does
 
@@ -103,7 +103,7 @@ fresh install shows exactly what you configure.
 | | |
 |---|---|
 | ![Live feed with the detail panel open](docs/screenshots/live-feed.png) | ![Indicators with a selection and a drill-down](docs/screenshots/indicators.png) |
-| **Live feed.** Dense list, unread markers, detail panel. | **Indicators.** Table, selection and export, drill-down, calendar. |
+| **Live feed.** Dense list, the "last looked" line, and a detail panel showing what each indicator is linked to. | **Indicators.** Table, selection and export, drill-down, calendar. |
 | ![Sources with health and failure reasons](docs/screenshots/sources.png) | ![Testing a feed before adding it](docs/screenshots/add-source.png) |
 | **Sources.** Health, last success, response time, why a feed fails. | **Add source.** Test the feed before saving. |
 | ![The sign-in page](docs/screenshots/sign-in.png) | ![Settings: Security](docs/screenshots/settings-security.png) |
@@ -112,8 +112,10 @@ fresh install shows exactly what you configure.
 | **Affects us.** Critical items, with the reasons for their priority. | **Settings, Our stack.** What you run, and how many items mention each. |
 | ![Critical and high with an item selected](docs/screenshots/high-severity.png) | ![Settings: exploited vulnerabilities](docs/screenshots/settings.png) |
 | **Critical and high.** Same list and panel as the Live feed, plus what's most mentioned. | **Settings, Exploited vulnerabilities.** CISA's catalog, updated daily. |
-| ![Analytics](docs/screenshots/analytics.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
-| **Analytics.** Volume, severity mix, top sources, publishing times. | **Light theme.** |
+| ![IOC database with an indicator open](docs/screenshots/ioc-database.png) | ![Analytics](docs/screenshots/analytics.png) |
+| **IOC database.** Look-ups, sources and confidence, and the articles an indicator appears in. | **Analytics.** Volume, severity mix, top sources, publishing times. |
+| ![Light theme](docs/screenshots/dashboard-light.png) | |
+| **Light theme.** | |
 
 ![Phone layout: dashboard and Live feed](docs/screenshots/phone.png)
 
@@ -293,6 +295,12 @@ the same way. It removes the `pantomath` package and moves everything over:
   and the nginx site and the loopback-only override are renamed;
 - the service is now `omenwatch`, and the command `omenwatch-admin`.
 
+The 2.0 package also brings its own Python, so the old Python environment in
+`/opt/omenwatch/venv` is removed during the upgrade and nothing is downloaded.
+Both databases are updated in place the first time the service starts; the
+first start after the upgrade can take a few seconds longer while I index the
+indicators already stored in your articles.
+
 Sign-in, Settings and SIEM keys keep working (keys still start with `pms_` and
 `pmk_`). Everyone signs in once more, because the sign-in cookie has a new
 name. A SIEM that checks Pantomath's certificate needs the renamed file
@@ -375,6 +383,32 @@ How it fits together, and why things are the way they are:
   Webhooks work without a browser.
 
 ## Changelog
+
+**2.0.0** — I renamed Pantomath to OmenWatch and rebuilt a lot underneath it.
+- **The upgrade is automatic.** Installing OmenWatch over Pantomath moves your
+  data, HTTPS setup and service across (see Upgrading). SIEM keys, API keys
+  and `/api/v1` keep working unchanged.
+- **New interface.** I redesigned every screen. The dashboard now leads with
+  a Sightings chart of what arrived and when, and a "last looked" line marks
+  where new items start in every list.
+- **Correlation.** An article's detail panel shows whether each indicator is
+  in your IOC database or on CISA's exploited list, and how many other
+  articles mention it. It also lists the related articles, ranked by what
+  they share. An indicator in the IOC database shows the articles it appears
+  in and what is mentioned alongside it.
+- **One package for every Ubuntu.** The `.deb` carries its own Python 3.13,
+  needs no system Python and no internet access, and I test it on Ubuntu
+  18.04 to 26.10 (`scripts/test-ubuntu-matrix.sh`).
+- **Monitoring.** `GET /api/health` for uptime checks and `GET /metrics` for
+  Prometheus (see the API reference).
+- **Faster SIEM lookups.** With a million indicators, a single lookup answers
+  in about 7 ms and a batch of 1,000 in about 110 ms (95th percentile).
+  Importing indicators is about 50% faster, and memory stays under
+  250 MB with 20 clients.
+- **Safer article fetching.** The address an article link points to is now
+  checked where the connection is made, which closes a DNS-rebinding gap.
+- Only the three newest pre-restore safety copies are kept.
+- Database changes now run as numbered migrations.
 
 **0.9.0** — Installation fixes. Install and upgrade with `sudo apt install
 ./omenwatch_<version>_amd64.deb`, which also installs `python3-venv`
