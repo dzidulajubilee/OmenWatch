@@ -1,6 +1,6 @@
 import pytest
 
-from pantomath.intelligence.tagging import extract_tags
+from omenwatch.news.tagging import extract_tags
 
 
 def test_extracts_known_vendor():
@@ -37,7 +37,7 @@ def test_multiple_vendors_deduped_and_ordered():
 
 # --- Regressions: names used to match as substrings of ordinary words ---
 # Each of these produced a wrong vendor/actor tag with substring matching,
-# and several are everyday vocabulary in exactly the feeds Pantomath reads.
+# and several are everyday vocabulary in exactly the feeds OmenWatch reads.
 
 @pytest.mark.parametrize("text, wrong_tag", [
     ("New threat intelligence report released", "Intel"),

@@ -1,0 +1,27 @@
+[Unit]
+Description=OmenWatch - Threat Intelligence Feed Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=omenwatch
+Group=omenwatch
+Environment=OMENWATCH_DB=/var/lib/omenwatch/omenwatch.db
+Environment=OMENWATCH_PORT=7373
+WorkingDirectory=/opt/omenwatch
+ExecStart=/opt/omenwatch/python/bin/python3 -I -m uvicorn omenwatch.app:app --host 0.0.0.0 --port ${OMENWATCH_PORT}
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/omenwatch
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

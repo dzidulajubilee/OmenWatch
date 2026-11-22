@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
-systemctl stop pantomath.service || true
-systemctl disable pantomath.service || true
+systemctl stop omenwatch.service || true
+systemctl disable omenwatch.service || true

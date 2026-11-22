@@ -1,4 +1,4 @@
-from pantomath.alerts.matcher import matches_webhook
+from omenwatch.alerts.matcher import matches_webhook
 
 
 def _item(**overrides):

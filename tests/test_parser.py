@@ -1,4 +1,4 @@
-from pantomath.feeds.parser import domain_from_url, normalize_entry
+from omenwatch.news.parser import domain_from_url, normalize_entry
 
 
 class FakeEntry(dict):

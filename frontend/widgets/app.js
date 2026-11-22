@@ -5,17 +5,17 @@
 // ------------------------------------------------------- settings auth
 
 // Only Settings and Sources are password-gated (server-side, via
-// pantomath/api/routes.py's protected_router) — the rest of the app
+// omenwatch/api/routes.py's protected_router) — the rest of the app
 // (Dashboard, Live Feed, IOCs, etc.) is intentionally left open, since
 // this is designed as an always-visible SOC/NOC display. See
-// pantomath/auth/settings_auth.py for the full reasoning.
-let settingsToken = sessionStorage.getItem('pantomath_settings_token') || null;
+// omenwatch/auth/settings_auth.py for the full reasoning.
+let settingsToken = sessionStorage.getItem('omenwatch_settings_token') || null;
 let _authUnlockedCallback = null;
 
 function setSettingsToken(token) {
   settingsToken = token;
-  if (token) sessionStorage.setItem('pantomath_settings_token', token);
-  else sessionStorage.removeItem('pantomath_settings_token');
+  if (token) sessionStorage.setItem('omenwatch_settings_token', token);
+  else sessionStorage.removeItem('omenwatch_settings_token');
 }
 
 // Every fetch() call in the app is routed through this wrapper (it
@@ -34,7 +34,7 @@ function setSettingsToken(token) {
     }
     return nativeFetch(url, opts).then(res => {
       // 0.8.0: the server asks for sign-in (session expired or revoked).
-      if (res.status === 401 && res.headers.get('X-Pantomath-Sign-In') && !document.body.classList.contains('signed-out')) {
+      if (res.status === 401 && res.headers.get('X-OmenWatch-Sign-In') && !document.body.classList.contains('signed-out')) {
         showSignIn(null, 'expired');
       }
       return res;
@@ -227,10 +227,26 @@ function timeAgo(ts) {
 }
 
 let sources = [];
+// Sources used to get a colour per category. 2.0 keeps the chrome grey: the
+// stored colour is still sent for older clients, but nothing paints with it.
 const CATEGORY_COLORS = {
-  general: '#5eead4', government: '#f87171', vulnerability: '#34d399',
-  news: '#60a5fa', malware: '#e2586a', research: '#a78bfa'
+  general: '#8A8A90', government: '#8A8A90', vulnerability: '#8A8A90',
+  news: '#8A8A90', malware: '#8A8A90', research: '#8A8A90'
 };
+// The search box says what it searches where there is room for it.
+(function () {
+  const input = document.getElementById('globalSearch');
+  if (!input || !window.matchMedia) return;
+  const wide = window.matchMedia('(min-width: 900px)');
+  const set = () => { input.placeholder = wide.matches ? 'Search CVEs, IPs, hashes, keywords' : 'Search'; };
+  set();
+  wide.addEventListener ? wide.addEventListener('change', set) : wide.addListener(set);
+})();
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const STAR_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+const STAR_ICON_ON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
 
 // ------------------------------------------------------------------ router
 
@@ -287,7 +303,7 @@ async function loadDashboard() {
   } catch (e) {
     renderConnStatus();
     document.getElementById('dashKpis').innerHTML =
-      `<div class="dash-error">Couldn't load the dashboard (${escapeHtml(e.message)}). Pantomath will try again in 30 seconds.</div>`;
+      `<div class="dash-error">Couldn't load the dashboard (${escapeHtml(e.message)}). OmenWatch will try again in 30 seconds.</div>`;
     return;
   }
   const range = RANGE_WORDS[ov.hours] || `${ov.hours} hours`;
@@ -313,8 +329,7 @@ async function loadDashboard() {
     { label: 'Indicators this week', value: ind.cve + ind.ip + ind.hash + ind.email,
       note: `${count(ind.cve, 'CVE', 'CVEs')}, ${count(ind.ip, 'IP', 'IPs')}, ${count(ind.hash, 'hash', 'hashes')}, ${count(ind.email, 'email', 'emails')}`,
       goto: 'iocs' },
-    { label: 'Published this week', value: ov.published_week, note: `${ov.published_today} of them today`, goto: 'live-feed' },
-    { label: 'Sources', value: src.total ? `${src.healthy} of ${src.total}` : '0', note: sourcesNote,
+    { label: 'Sources working', value: src.total ? `${src.healthy} of ${src.total}` : '0', note: sourcesNote,
       noteTone: sourcesTone, goto: 'sources' },
   ];
   const kpiEl = document.getElementById('dashKpis');
@@ -328,7 +343,7 @@ async function loadDashboard() {
 
   renderAttention(ov, range);
   renderSourceHealth(src);
-  renderDayChart(ov.by_day);
+  renderSightings(ov, range);
 }
 
 function indicatorSummary(i) {
@@ -343,8 +358,8 @@ function indicatorSummary(i) {
 function renderAttention(ov, range) {
   const el = document.getElementById('dashAttention');
   if (!ov.sources.total) {
-    el.innerHTML = `<li class="card-empty"><strong>No sources yet</strong>Add an RSS or Atom feed and Pantomath starts collecting straight away.<br>
-      <button type="button" class="btn btn-primary" id="dashAddFirst">+ Add your first source</button></li>`;
+    el.innerHTML = `<li class="card-empty"><strong>No sources yet</strong>Add an RSS or Atom feed and OmenWatch starts collecting straight away.<br>
+      <button type="button" class="btn btn-primary" id="dashAddFirst">Add your first source</button></li>`;
     document.getElementById('dashAddFirst').addEventListener('click', () => document.getElementById('addSourceBtnHeader').click());
     return;
   }
@@ -398,8 +413,72 @@ function renderSourceHealth(src) {
   el.innerHTML = rows.join('');
 }
 
+// The dashboard's main chart (2.0): articles per hour (24 h) or per day,
+// critical and high in the accent, everything else a neutral step, and the
+// "last looked" line where new arrivals begin.
+function renderSightings(ov, range) {
+  const el = document.getElementById('dashSightings');
+  const { step, buckets } = ov.timeline;
+  const total = buckets.reduce((n, b) => n + b.critical + b.high + b.other, 0);
+  const hot = buckets.reduce((n, b) => n + b.critical + b.high, 0);
+  document.getElementById('sightingsTotal').textContent = total.toLocaleString();
+  document.getElementById('sightingsSub').textContent =
+    `articles published in the last ${range}, ${hot.toLocaleString()} critical or high`;
+  const W = Math.max(320, el.clientWidth - 40), H = 260, top = 24, bottom = 24, left = 0, right = 36;
+  const plotH = H - top - bottom, plotW = W - left - right;
+  const max = Math.max(4, ...buckets.map(b => b.critical + b.high + b.other));
+  const nice = (m => { const p = Math.pow(10, Math.floor(Math.log10(m))); for (const f of [1, 2, 2.5, 5, 10]) if (f * p >= m) return f * p; return m; })(max);
+  const y = v => top + plotH - (v / nice) * plotH;
+  const slot = plotW / buckets.length, bw = Math.max(2, Math.min(28, slot * 0.62));
+  const hourly = step === 3600;
+  const label = t => hourly
+    ? new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    : new Date(t * 1000).toLocaleDateString([], { day: 'numeric', month: 'short' });
+  const every = Math.ceil(buckets.length / (W < 640 ? 4 : 8));
+  const grid = [0.5, 1].map(f => `<line x1="${left}" x2="${left + plotW}" y1="${y(nice * f)}" y2="${y(nice * f)}"/>`).join('')
+    + `<line x1="${left}" x2="${left + plotW}" y1="${y(0)}" y2="${y(0)}"/>`;
+  const yLabels = [0.5, 1].map(f => `<text x="${W}" y="${y(nice * f) + 4}" text-anchor="end">${nice * f}</text>`).join('');
+  const cols = buckets.map((b, k) => {
+    const x = left + k * slot + (slot - bw) / 2, rest = b.other, hotN = b.critical + b.high;
+    const yRest = y(rest), yHot = y(rest + hotN);
+    return `<g class="col" data-k="${k}">
+      <rect class="hit" x="${left + k * slot}" y="${top}" width="${slot}" height="${plotH}"/>
+      ${rest ? `<rect class="rest" x="${x}" y="${yRest}" width="${bw}" height="${y(0) - yRest}" rx="2"/>` : ''}
+      ${hotN ? `<rect class="hot" x="${x}" y="${yHot}" width="${bw}" height="${yRest - yHot - (rest ? 1 : 0)}" rx="2"/>` : ''}
+    </g>`;
+  }).join('');
+  const xLabels = buckets.map((b, k) => (k % every === 0 && k < buckets.length - 1) || k === buckets.length - 1
+    ? `<text x="${left + k * slot + slot / 2}" y="${H - 4}" text-anchor="middle">${k === buckets.length - 1 ? (hourly ? 'Now' : 'Today') : escapeHtml(label(b.start))}</text>` : '').join('');
+  // The last-looked line, if it falls inside the range.
+  const since = ov.since, first = buckets[0].start, end = buckets[buckets.length - 1].start + step;
+  let looked = '';
+  if (since > first && since < end) {
+    const lx = left + ((since - first) / (end - first)) * plotW;
+    looked = `<g class="looked"><line x1="${lx}" x2="${lx}" y1="${top - 6}" y2="${y(0)}"/>
+      <line class="tick" x1="${lx - 3}" x2="${lx + 3}" y1="${top + 2}" y2="${top - 10}"/>
+      <text x="${lx + 8}" y="${top - 6}"${lx > plotW - 140 ? ` text-anchor="end" dx="-16"` : ''}>last looked ${escapeHtml(fmtClock(since))}</text></g>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${escapeAttr(`${total} articles in the last ${range}, ${hot} critical or high`)}">
+    <g class="grid">${grid}</g><g class="axis">${yLabels}${xLabels}</g>${cols}${looked}</svg>
+    <div class="sightings-tip" hidden></div>`;
+  const tip = el.querySelector('.sightings-tip');
+  el.querySelectorAll('g.col').forEach(g => {
+    g.addEventListener('mouseenter', () => {
+      const b = buckets[+g.dataset.k];
+      const when = hourly ? `${label(b.start)} to ${label(b.start + step)}` : new Date(b.start * 1000).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+      tip.innerHTML = `<b>${escapeHtml(when)}</b><br>${b.critical + b.high + b.other} articles, ${b.critical} critical, ${b.high} high${b.new ? `<br>${b.new} new since you last looked` : ''}`;
+      tip.hidden = false;
+      const r = g.querySelector('.hit').getBoundingClientRect(), box = el.getBoundingClientRect();
+      tip.style.left = Math.min(box.width - tip.offsetWidth - 8, Math.max(8, r.left - box.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+      tip.style.top = '8px';
+    });
+    g.addEventListener('mouseleave', () => { tip.hidden = true; });
+  });
+}
+
 function renderDayChart(days) {
   const el = document.getElementById('dashDays');
+  if (!el) return;
   days.forEach(d => { d.critical = d.critical || 0; });
   const max = Math.max(1, ...days.map(d => d.critical + d.high + d.medium + d.low));
   const px = n => Math.max(3, Math.round((n / max) * 96));
@@ -481,7 +560,7 @@ async function loadDateRangeHint() {
     const latestStr = new Date(range.latest * 1000).toISOString().slice(0, 10);
     fromInput.min = earliestStr; fromInput.max = latestStr;
     toInput.min = earliestStr; toInput.max = latestStr;
-    hintEl.textContent = `${range.total} item(s) stored, ${earliestStr} — ${latestStr}`;
+    hintEl.textContent = `${range.total.toLocaleString()} ${range.total === 1 ? 'item' : 'items'} stored, ${earliestStr} to ${latestStr}`;
   } else {
     hintEl.textContent = 'No items stored yet';
   }
@@ -589,7 +668,11 @@ async function loadThreatActors() {
 const IOC_TYPE_LABELS = { cve: 'CVEs', ip: 'IP addresses', hash: 'Hashes', email: 'Emails' };
 const IOC_SINGULAR = { cve: 'CVE', ip: 'IP address', hash: 'hash', email: 'email' };
 const IOC_TYPE_LOWER = { cve: 'CVEs', ip: 'IP addresses', hash: 'hashes', email: 'emails' };
-const IOC_TYPE_COLORS = { cve: '#5eead4', ip: '#60a5fa', hash: '#a78bfa', email: '#34d399' };
+// One hue: the accent leads, the rest are neutral steps.
+const IOC_TYPE_COLORS = {
+  get cve() { return cssVar('--signal'); }, get ip() { return cssVar('--text-faint'); },
+  get hash() { return cssVar('--text-faint'); }, get email() { return cssVar('--text-faint'); },
+};
 let currentIocType = 'cve';
 let iocCurrentPage = 1;
 const IOC_PAGE_SIZE = 25;
@@ -918,7 +1001,7 @@ async function loadWebhooksTable() {
     const statusOk = w.last_status && w.last_status.startsWith('ok');
     return `
       <tr>
-        <td>${w.protected ? '🔒 ' : ''}${escapeHtml(w.name)}${w.allow_insecure_tls ? ' <span title="TLS certificate verification disabled for this webhook" style="color:var(--text-faint); font-size:10.5px;">(insecure TLS)</span>' : ''}</td>
+        <td>${w.protected ? '<span class="chip" title="A key is needed to see or change it">Protected</span> ' : ''}${escapeHtml(w.name)}${w.allow_insecure_tls ? ' <span title="TLS certificate verification disabled for this webhook" style="color:var(--text-faint); font-size:10.5px;">(insecure TLS)</span>' : ''}</td>
         <td style="color:var(--text-dim); font-size:11.5px;">${escapeHtml(trigger)}</td>
         <td>
           <span class="status-badge status-${w.last_status === 'pending' ? 'pending' : (statusOk ? 'ok' : 'error')}"></span>
@@ -928,7 +1011,7 @@ async function loadWebhooksTable() {
           <button class="btn" data-action="test-webhook" data-id="${w.id}" style="padding:4px 10px; font-size:11px;">Test</button>
           <button class="icon-btn" data-action="edit-webhook" data-id="${w.id}" title="Edit">&#9998;</button>
           <button class="icon-btn toggle" data-action="toggle-webhook" data-id="${w.id}" data-enabled="${w.enabled}" title="${w.enabled ? 'Pause' : 'Resume'}">${w.enabled ? '⏸' : '▶'}</button>
-          <button class="icon-btn" data-action="delete-webhook" data-id="${w.id}" title="Remove">✕</button>
+          <button class="icon-btn" data-action="delete-webhook" data-id="${w.id}" title="Remove" aria-label="Remove">&times;</button>
         </td>
       </tr>`;
   }).join('');
@@ -1061,7 +1144,7 @@ async function loadSourcesView() {
   renderSourcesSummary(sources);
   if (sources.length === 0) {
     table.innerHTML = `<div class="card-empty"><strong>No sources yet</strong>Add an RSS or Atom feed to start collecting.<br>
-      <button type="button" class="btn btn-primary" id="srcAddFirst">+ Add your first source</button></div>`;
+      <button type="button" class="btn btn-primary" id="srcAddFirst">Add your first source</button></div>`;
     document.getElementById('srcAddFirst').onclick = () => openModal(null);
     return;
   }
@@ -1125,7 +1208,7 @@ async function downloadSourcesExport() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'pantomath-sources.json';
+  a.download = 'omenwatch-sources.json';
   a.click();
 }
 document.getElementById('importSourcesBtn').onclick = () => document.getElementById('importSourcesFile').click();
@@ -1183,7 +1266,7 @@ document.getElementById('backupBtn').onclick = async () => {
   const blob = await res.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'pantomath-backup.db';
+  a.download = 'omenwatch-backup.db';
   a.click();
   URL.revokeObjectURL(a.href);
 };
@@ -1227,8 +1310,8 @@ document.getElementById('restoreFileInput').onchange = async (e) => {
       body = JSON.parse(raw);
     } catch {
       const hint = res.status === 413
-        ? ' — the upload was likely rejected by a reverse proxy (e.g. nginx) before reaching Pantomath. ' +
-          'If you set up HTTPS via `pantomath-admin setup-https`, re-run it with -y to pick up the raised ' +
+        ? ' — the upload was likely rejected by a reverse proxy (e.g. nginx) before reaching OmenWatch. ' +
+          'If you set up HTTPS via `omenwatch-admin setup-https`, re-run it with -y to pick up the raised ' +
           'upload-size limit, then try again.'
         : '';
       resultEl.textContent = `Restore failed: server returned an unexpected non-JSON response (HTTP ${res.status})${hint}`;
@@ -1241,7 +1324,7 @@ document.getElementById('restoreFileInput').onchange = async (e) => {
       return;
     }
     resultEl.textContent = `Restored successfully. Previous data was saved to: ${body.safety_backup || '(no prior database existed)'}. Reloading…`;
-    resultEl.style.color = 'var(--signal)';
+    resultEl.style.color = 'var(--green-text)';
     setTimeout(() => window.location.reload(), 2500);
   } catch (err) {
     resultEl.textContent = `Restore failed: ${err.message}`;
@@ -1262,7 +1345,7 @@ document.getElementById('reprocessBtn').onclick = async () => {
     });
     const result = await res.json();
     if (res.ok) {
-      resultEl.textContent = `Done — reprocessed ${result.processed} item(s) across ${result.sources} source(s).`;
+      resultEl.textContent = `Reprocessed ${result.processed} ${result.processed === 1 ? 'item' : 'items'} from ${result.sources} ${result.sources === 1 ? 'source' : 'sources'}`;
       loadDashboard?.();
     } else {
       resultEl.textContent = `Failed: ${result.detail || 'unknown error'}`;
@@ -1434,10 +1517,10 @@ document.getElementById('confirmAddWebhook').onclick = async () => {
 
 // -------------------------------------------------------------- shell (0.5.0)
 
-// "New since you last looked" = since this browser last left Pantomath.
+// "New since you last looked" = since this browser last left OmenWatch.
 // Read once at load, so the number stays stable while you're looking, and
 // re-recorded whenever the tab is hidden or closed.
-const LAST_SEEN_KEY = 'pantomath-last-seen';
+const LAST_SEEN_KEY = 'omenwatch-last-seen';
 const previousVisitEnded = (() => {
   try { return parseFloat(localStorage.getItem(LAST_SEEN_KEY)) || null; } catch (e) { return null; }
 })();
@@ -1606,7 +1689,7 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2200);
 }
 
-// navigator.clipboard only exists on https:// or localhost, and Pantomath
+// navigator.clipboard only exists on https:// or localhost, and OmenWatch
 // is often opened over plain http on the LAN — so fall back to the older
 // execCommand route rather than silently doing nothing.
 async function copyText(text, what) {
@@ -1642,15 +1725,15 @@ function downloadText(filename, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Read state lives in this browser: an item is new if Pantomath stored it
+// Read state lives in this browser: an item is new if OmenWatch stored it
 // after you last left or last pressed "Mark all as read", whichever is later.
-const READ_MARK_KEY = 'pantomath-read-mark';
+const READ_MARK_KEY = 'omenwatch-read-mark';
 const pageLoadedAt = Date.now() / 1000;
 // 0.8.0: opening an item marks just that item read, at once. `read` holds
 // items opened after the time mark (so they stop counting as new);
 // `unread` holds items marked unread again from before it. Both are small:
 // entries the time mark already covers are pruned.
-const READ_ITEMS_KEY = 'pantomath-read-items';
+const READ_ITEMS_KEY = 'omenwatch-read-items';
 let readState = loadReadState();
 function loadReadState() {
   try {
@@ -1738,11 +1821,11 @@ const livePanel = createFeedPanel('live-feed', 'liveFeed', 'liveDetail', () => (
 ));
 let liveTotal = 0;
 let liveDensity = 'compact';
-try { liveDensity = localStorage.getItem('pantomath-density') || 'compact'; } catch (e) { /* default */ }
+try { liveDensity = localStorage.getItem('omenwatch-density') || 'compact'; } catch (e) { /* default */ }
 
 function setLiveDensity(density) {
   liveDensity = density;
-  try { localStorage.setItem('pantomath-density', density); } catch (e) { /* not remembered */ }
+  try { localStorage.setItem('omenwatch-density', density); } catch (e) { /* not remembered */ }
   document.querySelectorAll('.feed-table').forEach(t => { t.dataset.density = density; });
   document.querySelectorAll('.density-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.density === density)));
 }
@@ -1819,7 +1902,7 @@ function feedRowHtml(panel, i, unread) {
     <span class="feed-row-source">${sourceIconHtml(i.source_id, i.source_color)}<span>${escapeHtml(i.source_name)}</span></span>
     <span class="feed-row-iocs">${chip ? `<span class="chip chip-ioc">${escapeHtml(chip)}</span>` : ''}${total > 1 ? `<span>+${total - 1}</span>` : ''}</span>
     <span class="feed-row-time" title="${escapeAttr(timeTitle(i))}">${escapeHtml(fmtClock(effectiveTs(i)))}</span>
-    <button type="button" class="row-icon${saved ? ' saved' : ''}" data-action="bookmark" aria-label="${saved ? 'Remove from saved' : 'Save'}" title="${saved ? 'Saved' : 'Save'}">${saved ? '&#9733;' : '&#9734;'}</button>
+    <button type="button" class="row-icon${saved ? ' saved' : ''}" data-action="bookmark" aria-label="${saved ? 'Remove from saved' : 'Save'}" title="${saved ? 'Saved' : 'Save'}">${saved ? STAR_ICON_ON : STAR_ICON}</button>
   </div>`;
 }
 
@@ -1833,11 +1916,14 @@ function renderFeedRows(panel) {
   }
   const since = unreadSince();
   const anyUnread = panel.items.some(i => i.fetched_at > since);
-  const parts = anyUnread ? ['<div class="feed-divider new">New since you last looked</div>'] : [];
+  const parts = [];
   let earlierShown = false;
   for (const i of panel.items) {
     const unread = isUnread(i);
-    if (anyUnread && i.fetched_at <= since && !earlierShown) { parts.push('<div class="feed-divider">Earlier</div>'); earlierShown = true; }
+    if (anyUnread && i.fetched_at <= since && !earlierShown) {
+      parts.push(`<div class="last-looked" role="separator"><span>last looked ${escapeHtml(fmtClock(since))}</span></div>`);
+      earlierShown = true;
+    }
     parts.push(feedRowHtml(panel, i, unread));
   }
   el.innerHTML = parts.join('');
@@ -1908,7 +1994,7 @@ function renderFeedDetail(panel, i, { force = false } = {}) {
     <dl class="detail-meta">
       <dt>Source</dt><dd>${escapeHtml(i.source_name)}</dd>
       <dt>Published</dt><dd>${escapeHtml(fmtFull(effectiveTs(i)))}</dd>
-      <dt>Seen by Pantomath</dt><dd>${escapeHtml(fmtFull(i.fetched_at))}</dd>
+      <dt>Seen by OmenWatch</dt><dd>${escapeHtml(fmtFull(i.fetched_at))}</dd>
       ${i.vendors.length ? `<dt>Vendors</dt><dd>${i.vendors.map(escapeHtml).join(', ')}</dd>` : ''}
       ${i.actors.length ? `<dt>Threat actors</dt><dd>${i.actors.map(escapeHtml).join(', ')}</dd>` : ''}
     </dl>
@@ -1918,17 +2004,18 @@ function renderFeedDetail(panel, i, { force = false } = {}) {
         <h4>Indicators (${indicators.length})</h4>
         ${indicators.length ? '<button type="button" class="btn btn-sm" data-role="copy-all">Copy all</button>' : ''}
       </div>
-      ${indicators.length ? indicators.map(([type, label, v]) => `
-        <div class="ioc-line${i.kev_cves.includes(v) ? ' exploited' : ''}"${i.kev_cves.includes(v) ? ' title="On CISA\'s Known Exploited Vulnerabilities list"' : ''}>
-          <span class="ioc-type">${label}</span>
-          <button type="button" class="ioc-value" data-ioc-type="${type}" data-ioc-value="${escapeAttr(v)}" title="Show every item mentioning this">${escapeHtml(v)}</button>
+      <div class="corr">${indicators.length ? indicators.map(([type, label, v]) => `
+        <div class="corr-ent${i.kev_cves.includes(v) ? ' kev' : ''}" data-key="${escapeAttr(type + ':' + v.toLowerCase())}">
+          <span class="corr-kind">${label}</span>
+          <button type="button" class="corr-val ioc-value" data-ioc-type="${type}" data-ioc-value="${escapeAttr(v)}" title="Every article that mentions this">${escapeHtml(v)}</button>
+          <span class="corr-meta">${i.kev_cves.includes(v) ? '<span class="corr-kev">Exploited</span>' : ''}</span>
           <button type="button" class="row-icon" data-copy="${escapeAttr(v)}" aria-label="Copy ${escapeAttr(v)}">${COPY_ICON}</button>
-        </div>`).join('') : '<p class="muted">No CVEs, IP addresses, hashes or emails were found in this item.</p>'}
+        </div>`).join('') : '<p class="muted">No CVEs, IP addresses, hashes or emails were found in this item.</p>'}</div>
     </section>
     <section class="detail-section" data-role="related"></section>
     <div class="detail-actions">
       <a class="btn btn-primary" href="${safeHref(i.link)}" target="_blank" rel="noopener">Open original &#8599;</a>
-      <button type="button" class="btn" data-role="save">${i.bookmarked ? '&#9733; Saved' : '&#9734; Save'}</button>
+      <button type="button" class="btn" data-role="save">${i.bookmarked ? 'Saved' : 'Save'}</button>
       <button type="button" class="btn" data-role="read-toggle" data-id="${escapeAttr(i.id)}">Mark as unread</button>
       ${i.ips.length + i.hashes.length + i.emails.length ? '<button type="button" class="btn" data-role="promote" title="Add this item\'s IP addresses, hashes and emails to the IOC database">Promote indicators</button>' : ''}
     </div>`;
@@ -1958,21 +2045,47 @@ async function loadKevDetail(panel, i) {
   el.textContent = entries.map(e => `${e.cve}${e.name ? `, ${e.name}` : ''}: added ${day(e.date_added)}, CISA deadline ${day(e.due_date)}${e.ransomware === 'Known' ? ', used in ransomware campaigns' : ''}.`).join(' ');
 }
 
+// Correlation (2.0): what the IOC database and CISA's list know about each
+// value, how many articles mention it, and the articles that share the most.
 async function loadRelated(panel, i) {
-  const el = document.getElementById(panel.detailId).querySelector('[data-role="related"]');
-  const pick = i.cves[0] ? ['cve', i.cves[0]] : i.ips[0] ? ['ip', i.ips[0]] : i.hashes[0] ? ['hash', i.hashes[0]] : null;
-  if (!pick) { el.hidden = true; return; }
-  const [type, value] = pick;
-  const short = value.length > 24 ? value.slice(0, 22) + '…' : value;
-  const related = (await fetchItems({ ioc_type: type, ioc_value: value, limit: 6 })).filter(r => r.id !== i.id).slice(0, 3);
+  const root = document.getElementById(panel.detailId);
+  const el = root.querySelector('[data-role="related"]');
+  let data;
+  try {
+    const res = await fetch(`/api/items/${encodeURIComponent(i.id)}/related?limit=5`);
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch (e) { el.hidden = true; return; }
   if (panel.shownId !== i.id) return;  // the selection moved on while this loaded
+  const kind = { cve: 'cve', ip: 'ip', hash: 'hash', email: 'email' };
+  for (const e of data.entities) {
+    if (!kind[e.kind]) continue;
+    const row = root.querySelector(`.corr-ent[data-key="${CSS.escape(e.kind + ':' + e.value.toLowerCase())}"]`);
+    if (!row) continue;
+    const meta = row.querySelector('.corr-meta');
+    const bits = [];
+    if (e.indicator) {
+      row.classList.add('known');
+      const what = e.indicator.malware || e.indicator.threat_type || 'listed';
+      bits.push(`<span class="corr-known" title="In the IOC database, confidence ${e.indicator.confidence}">IOC: ${escapeHtml(what)}</span>`);
+    }
+    if (e.kev && !row.classList.contains('kev')) { row.classList.add('kev'); bits.push('<span class="corr-kev">Exploited</span>'); }
+    if (e.articles > 1) bits.push(`<span title="Articles that mention it">${e.articles} articles</span>`);
+    meta.innerHTML = (meta.innerHTML || '') + bits.join('');
+  }
+  const max = Math.max(1, ...data.related.map(r => r.score));
   el.hidden = false;
-  el.innerHTML = '<h4>Related</h4>' + (related.length
-    ? related.map(r => `<a class="related-link" href="${safeHref(r.link)}" target="_blank" rel="noopener">
-        <span class="related-title">${escapeHtml(r.title)}</span>
-        <span class="related-why">Also mentions ${escapeHtml(short)}. ${escapeHtml(r.source_name)}, ${escapeHtml(fmtClock(effectiveTs(r)))}</span>
-      </a>`).join('')
-    : `<p class="muted">No other items mention ${escapeHtml(short)}.</p>`);
+  el.innerHTML = '<h4>Related articles</h4>' + (data.related.length
+    ? data.related.map(r => {
+        const bars = Math.max(1, Math.round((r.score / max) * 4));
+        return `<a class="corr-rel" href="${safeHref(r.link)}" target="_blank" rel="noopener">
+        <span class="corr-rel-title">${escapeHtml(r.title)}</span>
+        <span class="corr-rel-meta">${r.shared.slice(0, 3).map(s => `<span class="chip${s.kind === 'actor' ? ' chip-tag' : ' chip-ioc'}">${escapeHtml(s.value.length > 22 ? s.value.slice(0, 20) + '…' : s.value)}</span>`).join('')}
+          ${r.shared.length > 3 ? `<span>+${r.shared.length - 3}</span>` : ''}
+          <span>${escapeHtml(r.source_name)}, ${escapeHtml(fmtClock(r.published))}</span>
+          <span class="corr-score" title="How much it shares with this article">${[1, 2, 3, 4].map(n => `<i class="${n <= bars ? 'on' : ''}" style="height:${4 + n * 2}px"></i>`).join('')}</span></span>
+      </a>`; }).join('')
+    : '<p class="corr-note">No other article shares an indicator, CVE or threat actor with this one.</p>');
 }
 
 // A CVE, IP, hash or email opens its drill-down on Indicators; a vendor or
@@ -2040,7 +2153,7 @@ const FEED_PAGES = {
     fetch: () => fetchItems({ limit: FEED_PAGE_LIMIT, affects_us: true }),
     empty: () => (lastOverviewData && lastOverviewData.affects_us && lastOverviewData.affects_us.watchlist
       ? { title: 'Nothing mentions our stack yet', hint: 'Items that name something on Our stack will appear here.' }
-      : { title: 'Tell Pantomath what you run', hint: 'Add your vendors and products under Settings, Our stack. Stored items are checked straight away.' }),
+      : { title: 'Tell OmenWatch what you run', hint: 'Add your vendors and products under Settings, Our stack. Stored items are checked straight away.' }),
   },
   exploited: {
     key: 'exploited', list: 'feedExploited', mentions: ['cves', 'vendors', 'watch_hits'], fourth: 'ours',
@@ -2205,7 +2318,7 @@ function showTagItems(view, name, total, items) {
 // -------------------------------------------------------------- settings (0.6.1)
 
 // One section at a time; the last one opened is remembered in this browser.
-const SETTINGS_TAB_KEY = 'pantomath-settings-tab';
+const SETTINGS_TAB_KEY = 'omenwatch-settings-tab';
 const SETTINGS_TAB_LOADERS = { 'set-stack': () => loadStackSettings(), 'set-kev': () => loadKevSettings() };
 function showSettingsTab(id) {
   if (!document.getElementById(id)) id = 'set-collection';
@@ -2326,7 +2439,7 @@ async function iocRowsForExport() {
 }
 
 function iocExportName(ext) {
-  return `pantomath-${currentIocType}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  return `omenwatch-${currentIocType}-${new Date().toISOString().slice(0, 10)}.${ext}`;
 }
 
 // Spreadsheet apps execute cells that start with = + - @ as formulas.
@@ -2350,7 +2463,7 @@ document.getElementById('iocCsvBtn').onclick = async () => {
 };
 document.getElementById('iocListBtn').onclick = async () => {
   const rows = await iocRowsForExport();
-  const header = `# Pantomath ${IOC_TYPE_LOWER[currentIocType]}, ${rows.length} entries, exported ${new Date().toISOString()}`;
+  const header = `# OmenWatch ${IOC_TYPE_LOWER[currentIocType]}, ${rows.length} entries, exported ${new Date().toISOString()}`;
   downloadText(iocExportName('txt'), [header, ...rows.map(r => r.name)].join('\n') + '\n');
 };
 
@@ -2430,7 +2543,7 @@ async function testFeedUrl(url) {
     if (res.status === 401) return { ok: false, error: 'Settings are locked. Unlock Sources and try again.' };
     return await res.json();
   } catch (e) {
-    return { ok: false, error: 'Pantomath itself could not be reached' };
+    return { ok: false, error: 'OmenWatch itself could not be reached' };
   }
 }
 
@@ -2572,7 +2685,7 @@ function renderTopSources(el, rows, totalItems) {
 
 function heatColor(n, max) {
   if (!n) return 'var(--bg-sunken)';
-  return `color-mix(in srgb, var(--signal) ${Math.round(18 + (n / max) * 82)}%, var(--bg-sunken))`;
+  return `color-mix(in srgb, var(--signal) ${Math.round(12 + (n / max) * 78)}%, var(--bg-sunken))`;
 }
 
 function renderHeatmap(el, heat) {
@@ -2614,7 +2727,7 @@ function renderStackBanner(ov) {
   let tone, title, text, action = null;
   if (!ours.watchlist) {
     tone = 'setup';
-    title = 'Tell Pantomath what you run';
+    title = 'Tell OmenWatch what you run';
     text = "List your vendors, products and systems, and every item that mentions one is marked Affects us. Exploited vulnerabilities are marked from CISA's catalog.";
     action = ['Set up Our stack', () => openSettingsTab('set-stack')];
   } else if (ours.items) {
@@ -2771,7 +2884,7 @@ async function loadKevSettings(status = null) {
   } else if (status.updated_at) {
     hint.textContent = `Updated ${timeAgo(status.updated_at)}. ${status.enabled ? 'Checked again once a day.' : 'Automatic updates are off.'}`;
   } else {
-    hint.textContent = status.enabled ? 'The first download starts a few minutes after Pantomath starts, or press Update now.' : 'Turned off.';
+    hint.textContent = status.enabled ? 'The first download starts a few minutes after OmenWatch starts, or press Update now.' : 'Turned off.';
   }
   const url = document.getElementById('kevUrl');
   if (document.activeElement !== url) url.value = status.url || '';
@@ -2863,9 +2976,9 @@ function showSignIn(status, reason = null) {
 // server), sign in, and reset with the recovery code.
 const SIGNIN_MODES = {
   setup: {
-    title: 'Welcome to Pantomath', button: 'Create and sign in', remember: true,
+    title: 'Welcome to OmenWatch', button: 'Create and sign in', remember: true,
     sub: 'Create the Settings password. It manages sources and settings, and signs you in until you add a team password for everyone else.',
-    code: 'Setup code', codeHint: 'Printed at the end of the installation. Show it again on the server with <code>sudo pantomath-admin setup-code</code>.',
+    code: 'Setup code', codeHint: 'Printed at the end of the installation. Show it again on the server with <code>sudo omenwatch-admin setup-code</code>.',
     password: 'New Settings password (at least 8 characters)', confirm: true, link: null,
   },
   login: {
@@ -2874,8 +2987,8 @@ const SIGNIN_MODES = {
   },
   recover: {
     title: 'Reset the Settings password', button: 'Reset and sign in', remember: false,
-    sub: 'Enter the recovery code you saved when Pantomath was set up. It works once, and you get a new one straight away.',
-    code: 'Recovery code', codeHint: 'Lost that too? On the server, run <code>sudo pantomath-admin reset-settings-password</code>.',
+    sub: 'Enter the recovery code you saved when OmenWatch was set up. It works once, and you get a new one straight away.',
+    code: 'Recovery code', codeHint: 'Lost that too? On the server, run <code>sudo omenwatch-admin reset-settings-password</code>.',
     password: 'New Settings password (at least 8 characters)', confirm: true, link: 'Back to sign in',
   },
 };
@@ -2890,7 +3003,7 @@ function setSigninMode(mode, reason = null) {
   document.getElementById('signinSub').textContent = m.sub
     || (reason === 'expired' ? 'Your session has ended. Sign in again to carry on where you were.'
       : st.team_password ? 'Use the team password. Administrators can use the Settings password.'
-      : 'Pantomath now asks everyone to sign in. Until a team password is added in Settings, use the Settings password.');
+      : 'OmenWatch now asks everyone to sign in. Until a team password is added in Settings, use the Settings password.');
   document.getElementById('signinCodeField').hidden = !m.code;
   if (m.code) {
     document.getElementById('signinCodeLabel').textContent = m.code;
@@ -2948,7 +3061,7 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     res = await fetch(request[0], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request[1]) });
   } catch (err) {
     setSigninBusy(false, m.button);
-    signinError("Pantomath can't be reached. Check the connection and try again.");
+    signinError("OmenWatch can't be reached. Check the connection and try again.");
     return;
   }
   const body = await res.json().catch(() => ({}));
@@ -2991,8 +3104,8 @@ async function loadSecuritySettings() {
   const status = await statusRes.json();
   const { devices, api_keys: keys, siem_keys: siemKeys = [] } = await sessionsRes.json();
   document.getElementById('teamPwHint').textContent = status.team_password
-    ? "Set. People sign in with it to view Pantomath; it can't change settings."
-    : 'Not set, so only the Settings password can sign in, and everyone who views Pantomath can also change it. Set a team password for viewers.';
+    ? "Set. People sign in with it to view OmenWatch; it can't change settings."
+    : 'Not set, so only the Settings password can sign in, and everyone who views OmenWatch can also change it. Set a team password for viewers.';
   document.getElementById('teamPwBtn').textContent = status.team_password ? 'Change' : 'Set team password';
   document.getElementById('teamPwRemove').hidden = !status.team_password;
 
@@ -3073,7 +3186,7 @@ document.getElementById('apiKeyCreateBtn').addEventListener('click', async () =>
   box.hidden = false;
   box.innerHTML = `<strong>Key for ${escapeHtml(label)}</strong><code>${escapeHtml(body.key)}</code>
     <button type="button" class="btn btn-sm" id="apiKeyCopy">Copy key</button>
-    <span class="muted"> Copy it now: Pantomath keeps only a fingerprint and can't show it again.</span>`;
+    <span class="muted"> Copy it now: OmenWatch keeps only a fingerprint and can't show it again.</span>`;
   document.getElementById('apiKeyCopy').onclick = () => copyText(body.key, 'the API key');
   loadSecuritySettings();
 });
@@ -3116,7 +3229,7 @@ function connectWs() {
   const status = await fetchAuthStatus();
   if (!status || !status.signed_in) {
     showSignIn(status || {});
-    if (!status) signinError("Pantomath can't be reached right now. Check the connection, then sign in.");
+    if (!status) signinError("OmenWatch can't be reached right now. Check the connection, then sign in.");
     return;
   }
   authStatus = status;

@@ -1,6 +1,11 @@
-# Pantomath
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+  <img src="docs/logo-light.svg" width="64" height="64" alt="OmenWatch logo">
+</picture>
 
-A lightweight, self-hosted threat intelligence dashboard. Pantomath polls the
+# OmenWatch
+
+A lightweight, self-hosted threat intelligence dashboard. OmenWatch polls the
 RSS and Atom feeds you choose, scores each item's severity, pulls out CVEs,
 IP addresses, hashes and emails, tags vendors and threat actors, and shows it
 all in one browser dashboard that updates live. Everything stays on your
@@ -9,24 +14,27 @@ internet access. Everyone signs in, with a team password to view and a
 separate Settings password to change things. **It ships with zero pre-loaded sources**, so a
 fresh install shows exactly what you configure.
 
-![Pantomath dashboard](docs/screenshots/dashboard.png)
+> **OmenWatch was called Pantomath** until version 2.0. Installing OmenWatch
+> over Pantomath keeps everything; see [Upgrading](#upgrading).
+
+![OmenWatch dashboard](docs/screenshots/dashboard.png)
 
 **Documentation:** [user guide](docs/user-guide.md) ·
 [administration](docs/administration.md) ·
 [how it works](docs/how-it-works.md) · [API](docs/api.md)
 
-> Screenshots use made-up sample data: no real vendors or incidents, CVE
-> numbers in the CVE-2099 range, and IP addresses from the ranges reserved
-> for documentation.
+> Screenshots use made-up sample data: no real vendors, threat actors or
+> incidents, CVE numbers in the CVE-2099 range, and IP addresses from the
+> ranges reserved for documentation.
 
 ## What it does
 
-- **Affects us.** Tell Pantomath what you run (Settings, Our stack: your
+- **Affects us.** Tell OmenWatch what you run (Settings, Our stack: your
   firewalls, switches, hypervisors, UPS and cooling management, remote
   access tools…) and every item that mentions one is marked **Affects us**,
   including items already stored. The dashboard opens with a banner saying
   how many items affect your stack and whether any are being exploited.
-- **Exploited.** Pantomath downloads CISA's Known Exploited Vulnerabilities
+- **Exploited.** OmenWatch downloads CISA's Known Exploited Vulnerabilities
   catalog once a day and marks every item that mentions a CVE on it as
   **Exploited**, with the date CISA added it, CISA's deadline for fixing
   it, and whether it's been used by ransomware. That's evidence of real
@@ -71,7 +79,7 @@ fresh install shows exactly what you configure.
   dashboard.
   For **Wazuh**, a ready-made integration raises a Wazuh alert when a hash,
   IP, domain, URL or email sender in an alert is a known indicator:
-  [wazuh-pantomath-integration](https://github.com/dzidulajubilee/wazuh-pantomath-integration).
+  [wazuh-omenwatch-integration](https://github.com/dzidulajubilee/wazuh-omenwatch-integration).
 - **Sources.** Health at a glance: healthy and failing counts, last
   successful poll, items today, response time, and *why* a feed is failing
   ("HTTP 404 Not Found", "URL returned a web page, not an RSS/Atom feed",
@@ -100,7 +108,7 @@ fresh install shows exactly what you configure.
 | | |
 |---|---|
 | ![Live feed with the detail panel open](docs/screenshots/live-feed.png) | ![Indicators with a selection and a drill-down](docs/screenshots/indicators.png) |
-| **Live feed.** Dense list, unread markers, detail panel. | **Indicators.** Table, selection and export, drill-down, calendar. |
+| **Live feed.** Dense list, the "last looked" line, and a detail panel showing what each indicator is linked to. | **Indicators.** Table, selection and export, drill-down, calendar. |
 | ![Sources with health and failure reasons](docs/screenshots/sources.png) | ![Testing a feed before adding it](docs/screenshots/add-source.png) |
 | **Sources.** Health, last success, response time, why a feed fails. | **Add source.** Test the feed before saving. |
 | ![The sign-in page](docs/screenshots/sign-in.png) | ![Settings: Security](docs/screenshots/settings-security.png) |
@@ -109,15 +117,17 @@ fresh install shows exactly what you configure.
 | **Affects us.** Critical items, with the reasons for their priority. | **Settings, Our stack.** What you run, and how many items mention each. |
 | ![Critical and high with an item selected](docs/screenshots/high-severity.png) | ![Settings: exploited vulnerabilities](docs/screenshots/settings.png) |
 | **Critical and high.** Same list and panel as the Live feed, plus what's most mentioned. | **Settings, Exploited vulnerabilities.** CISA's catalog, updated daily. |
-| ![Analytics](docs/screenshots/analytics.png) | ![Light theme](docs/screenshots/dashboard-light.png) |
-| **Analytics.** Volume, severity mix, top sources, publishing times. | **Light theme.** |
+| ![IOC database with an indicator open](docs/screenshots/ioc-database.png) | ![Analytics](docs/screenshots/analytics.png) |
+| **IOC database.** Look-ups, sources and confidence, and the articles an indicator appears in. | **Analytics.** Volume, severity mix, top sources, publishing times. |
+| ![Light theme](docs/screenshots/dashboard-light.png) | |
+| **Light theme.** | |
 
 ![Phone layout: dashboard and Live feed](docs/screenshots/phone.png)
 
 ## How items are rated
 
-Every item gets a **priority**: Critical, High, Medium or Low. Pantomath works
-it out itself (`pantomath/intelligence/priority.py`); nothing is sent to an
+Every item gets a **priority**: Critical, High, Medium or Low. OmenWatch works
+it out itself (`omenwatch/news/priority.py`); nothing is sent to an
 outside service. Three signals go in:
 
 - **Wording.** The title and summary, plus the full article page when deep
@@ -148,11 +158,11 @@ stack or the catalog changes. To change the wording rules, edit the lists in
 
 ## Requirements
 
-- Linux on x86_64 with systemd. The Debian/Ubuntu package is built and
-  tested on Ubuntu 24.04.
-- Python 3.10 to 3.14 with `venv` (on Debian/Ubuntu: `python3-venv`). The
-  package bundles wheels for exactly these versions so it installs offline.
-- nginx only if you want HTTPS through `pantomath-admin setup-https`, which
+- Linux on x86_64 with systemd. The package is tested on Ubuntu 18.04 to
+  26.10 (`scripts/test-ubuntu-matrix.sh`).
+- Nothing else: the package brings its own Python 3.13 with every
+  dependency installed, so it needs no system Python and no internet access.
+- nginx only if you want HTTPS through `omenwatch-admin setup-https`, which
   installs it for you.
 
 ## Install
@@ -160,19 +170,17 @@ stack or the catalog changes. To change the wording rules, edit the lists in
 Build the package from the repository, then install it:
 
 ```bash
-sudo apt install python3-venv git
-git clone https://github.com/dzidulajubilee/Pantomath.git
-cd Pantomath
-./build.sh deb                                  # -> dist/pantomath_<version>_amd64.deb
-sudo apt install ./dist/pantomath_*_amd64.deb
+sudo apt install git curl
+git clone https://github.com/dzidulajubilee/OmenWatch.git
+cd OmenWatch
+./build.sh deb                                  # -> dist/omenwatch_<version>_amd64.deb
+sudo apt install ./dist/omenwatch_*_amd64.deb
 ```
 
-Use `apt install ./…`, not `dpkg -i`: only `apt` fetches the package's
-dependencies (such as `python3-venv`). With `dpkg -i` on a fresh server the
-package is left half-installed; if that happens, run `sudo apt install -f`.
-
-`build.sh` reads the version with Python 3.11's `tomllib`. On Python 3.10
-(Ubuntu 22.04), pass it yourself: `VERSION=0.9.0 ./build.sh deb`.
+`build.sh` downloads the pinned Python build once (checked against its
+SHA-256) into `installer/.cache/` and installs the dependencies into it from
+the wheels in `installer/wheelhouse/`. `sudo dpkg -i` works as well as
+`sudo apt install ./…`.
 
 If you copy a ready-made `.deb` onto a server instead, check its
 `sha256sum` against the published one first. A truncated download fails
@@ -181,22 +189,22 @@ halfway through unpacking.
 The installer:
 - prints a one-time **setup code** at the end: the first-run page needs it
   (see First steps)
-- creates a dedicated unprivileged `pantomath` system user
-- sets up an isolated Python venv under `/opt/pantomath/venv` from the bundled wheels
-- installs, enables and starts the `pantomath` systemd service
+- creates a dedicated unprivileged `omenwatch` system user
+- puts its private Python in `/opt/omenwatch/python` (nothing is built or downloaded)
+- installs, enables and starts the `omenwatch` systemd service
 
 ## First steps
 
-1. *Recommended:* `sudo pantomath-admin setup-https`, so the first password
+1. *Recommended:* `sudo omenwatch-admin setup-https`, so the first password
    is never sent over plain HTTP (see Security notes).
-2. Open `http://<server>:7373`. The **Welcome to Pantomath** page asks for
+2. Open `http://<server>:7373`. The **Welcome to OmenWatch** page asks for
    the **setup code** printed at the end of the installation (show it again
-   with `sudo pantomath-admin setup-code`) and a new **Settings password**.
+   with `sudo omenwatch-admin setup-code`) and a new **Settings password**.
    Without the code nobody else on the network can claim a fresh install.
 3. Save the **recovery code** it shows once: it resets the Settings password
    from the sign-in page if the password is ever lost.
 4. In **Settings, Security**, set a **team password** for everyone who only
-   needs to view Pantomath. On the wall screen, sign in with it and tick
+   needs to view OmenWatch. On the wall screen, sign in with it and tick
    "Remember this device".
 5. In **Settings, Our stack**, list what you run; check **Settings, Exploited
    vulnerabilities** downloaded CISA's catalog.
@@ -222,14 +230,14 @@ The [user guide](docs/user-guide.md) covers every page; the
   all others at once) and creates **API keys** for scripts
   (`Authorization: Bearer …`). A key can read everything but change nothing.
   Changing the team password signs out everyone who used the old one.
-- Pantomath listens on **all interfaces, port 7373**, and over plain HTTP
+- OmenWatch listens on **all interfaces, port 7373**, and over plain HTTP
   passwords cross the network readable. On anything but a trusted network,
-  run `sudo pantomath-admin setup-https` to put nginx with a self-signed
-  certificate in front of it (it can also bind Pantomath to localhost only).
+  run `sudo omenwatch-admin setup-https` to put nginx with a self-signed
+  certificate in front of it (it can also bind OmenWatch to localhost only).
 - Feed URLs never appear in the viewer parts of the API, because they
   sometimes contain API keys. The Our stack list is only available in
   Settings; items show which entry they matched.
-- Pantomath downloads CISA's catalog from `www.cisa.gov` once a day. Turn
+- OmenWatch downloads CISA's catalog from `www.cisa.gov` once a day. Turn
   that off, or point it at an internal copy, under Settings, Exploited
   vulnerabilities.
 - **First run** needs the one-time setup code from the server, so nobody else
@@ -237,13 +245,13 @@ The [user guide](docs/user-guide.md) covers every page; the
   file only the service user and root can read) and deleted once used.
 - **Forgot the Settings password:** use the recovery code on the sign-in page
   ("Forgot the Settings password?"), or on the server run
-  `sudo pantomath-admin reset-settings-password`, which asks for the new
+  `sudo omenwatch-admin reset-settings-password`, which asks for the new
   password in the terminal. Either way, devices signed in with the old
   password are signed out.
-- **Lost device or leaked password:** `sudo pantomath-admin sign-out-everyone`
+- **Lost device or leaked password:** `sudo omenwatch-admin sign-out-everyone`
   (add `--api-keys` to revoke API keys too), then change the passwords.
 - Already behind an authenticating reverse proxy (SSO)? Set
-  `PANTOMATH_OPEN_DASHBOARD=1` in the service environment to turn Pantomath's
+  `OMENWATCH_OPEN_DASHBOARD=1` in the service environment to turn OmenWatch's
   own sign-in off.
 
 ## Configuration
@@ -265,16 +273,16 @@ Almost everything is managed in the UI:
   indicator extraction on everything already stored, without re-fetching.
 - **Backup and restore** (Settings): download the SQLite file, or restore one.
 
-Data lives in `/var/lib/pantomath/pantomath.db`. Source icons are fetched once
+Data lives in `/var/lib/omenwatch/omenwatch.db`. Source icons are fetched once
 and cached next to it.
 
 To change the port:
 
 ```bash
-sudo systemctl edit pantomath.service
+sudo systemctl edit omenwatch.service
 # [Service]
-# Environment=PANTOMATH_PORT=8080
-sudo systemctl restart pantomath
+# Environment=OMENWATCH_PORT=8080
+sudo systemctl restart omenwatch
 ```
 
 Want a starter set of feeds on a fresh install (for example, for a fleet of
@@ -283,7 +291,27 @@ only read when the database has no sources at all.
 
 ## Upgrading
 
-Install the new package over the old one with `sudo apt install ./pantomath_<version>_amd64.deb`. Your data and
+**From Pantomath (1.x) to OmenWatch 2.0:** install the OmenWatch package
+the same way. It removes the `pantomath` package and moves everything over:
+
+- data from `/var/lib/pantomath` to `/var/lib/omenwatch` (`pantomath.db`
+  becomes `omenwatch.db`; `ioc.db` keeps its name);
+- an HTTPS setup: the certificate becomes `/etc/nginx/ssl/omenwatch.crt`,
+  and the nginx site and the loopback-only override are renamed;
+- the service is now `omenwatch`, and the command `omenwatch-admin`.
+
+The 2.0 package also brings its own Python, so the old Python environment in
+`/opt/omenwatch/venv` is removed during the upgrade and nothing is downloaded.
+Both databases are updated in place the first time the service starts; the
+first start after the upgrade can take a few seconds longer while I index the
+indicators already stored in your articles.
+
+Sign-in, Settings and SIEM keys keep working (keys still start with `pms_` and
+`pmk_`). Everyone signs in once more, because the sign-in cookie has a new
+name. A SIEM that checks Pantomath's certificate needs the renamed file
+`/etc/nginx/ssl/omenwatch.crt`; it is the same certificate.
+
+Install the new package over the old one with `sudo apt install ./omenwatch_<version>_amd64.deb`. Your data and
 settings are kept, and any database changes are applied automatically when
 the service starts. Then:
 
@@ -295,30 +323,30 @@ the service starts. Then:
    password, then set a team password in Settings, Security and sign the wall
    screen in with "Remember this device".
 4. **0.8.1**: nothing to do, unless the install never had a Settings
-   password (then use `sudo pantomath-admin setup-code`).
-5. **0.9.0**: if you ran `sudo pantomath-admin setup-https` before, run it
+   password (then use `sudo omenwatch-admin setup-code`).
+5. **0.9.0**: if you ran `sudo omenwatch-admin setup-https` before, run it
    again: earlier versions left nginx's default site active, so plain
    `http://` showed the nginx welcome page instead of redirecting to HTTPS.
 
 ## Operating
 
 ```bash
-sudo systemctl status pantomath
-sudo systemctl restart pantomath
-sudo journalctl -u pantomath -f
+sudo systemctl status omenwatch
+sudo systemctl restart omenwatch
+sudo journalctl -u omenwatch -f
 ```
 
 Admin commands (run on the server):
 
 ```bash
-sudo pantomath-admin setup-code                 # the one-time first-run code
-sudo pantomath-admin reset-settings-password    # set a new Settings password here
-sudo pantomath-admin sign-out-everyone          # end every sign-in (--api-keys: keys too)
-sudo pantomath-admin setup-https                # nginx with HTTPS in front
+sudo omenwatch-admin setup-code                 # the one-time first-run code
+sudo omenwatch-admin reset-settings-password    # set a new Settings password here
+sudo omenwatch-admin sign-out-everyone          # end every sign-in (--api-keys: keys too)
+sudo omenwatch-admin setup-https                # nginx with HTTPS in front
 ```
 
-Uninstall but keep data: `sudo apt remove pantomath`. Remove everything,
-including data: `sudo apt purge pantomath`.
+Uninstall but keep data: `sudo apt remove omenwatch`. Remove everything,
+including data: `sudo apt purge omenwatch`.
 
 ## Building and development
 
@@ -338,9 +366,9 @@ How it fits together, and why things are the way they are:
 ## Known limitations
 
 - **Severity** is a keyword heuristic for triage, not CVSS or EPSS. Keywords
-  live in `pantomath/intelligence/scoring.py`.
+  live in `omenwatch/news/scoring.py`.
 - **Vendor and threat-actor tags** come from curated name lists
-  (`pantomath/intelligence/tagging.py`), and indicators are pattern-matched.
+  (`omenwatch/news/tagging.py`), and indicators are pattern-matched.
   Both are fast and predictable, but they aren't NLP.
 - **Our stack** matches names in each item's title and summary only, not the
   full article page, so an article that mentions your product only deep in
@@ -354,30 +382,56 @@ How it fits together, and why things are the way they are:
   the exact phrase until they're reprocessed. There are no user accounts.
 - **Source health history** (last success, failing since, response time)
   starts recording once you run 0.6.0 or later.
-- **RSS only shows recent items.** Pantomath builds up history from the day
+- **RSS only shows recent items.** OmenWatch builds up history from the day
   you add a source; it can't fetch what a feed no longer lists.
 - **Desktop notifications** only fire while a dashboard tab is open.
   Webhooks work without a browser.
 
 ## Changelog
 
+**2.0.0** — I renamed Pantomath to OmenWatch and rebuilt a lot underneath it.
+- **The upgrade is automatic.** Installing OmenWatch over Pantomath moves your
+  data, HTTPS setup and service across (see Upgrading). SIEM keys, API keys
+  and `/api/v1` keep working unchanged.
+- **New interface.** I redesigned every screen. The dashboard now leads with
+  a Sightings chart of what arrived and when, and a "last looked" line marks
+  where new items start in every list.
+- **Correlation.** An article's detail panel shows whether each indicator is
+  in your IOC database or on CISA's exploited list, and how many other
+  articles mention it. It also lists the related articles, ranked by what
+  they share. An indicator in the IOC database shows the articles it appears
+  in and what is mentioned alongside it.
+- **One package for every Ubuntu.** The `.deb` carries its own Python 3.13,
+  needs no system Python and no internet access, and I test it on Ubuntu
+  18.04 to 26.10 (`scripts/test-ubuntu-matrix.sh`).
+- **Monitoring.** `GET /api/health` for uptime checks and `GET /metrics` for
+  Prometheus (see the API reference).
+- **Faster SIEM lookups.** With a million indicators, a single lookup answers
+  in about 7 ms and a batch of 1,000 in about 110 ms (95th percentile).
+  Importing indicators is about 50% faster, and memory stays under
+  250 MB with 20 clients.
+- **Safer article fetching.** The address an article link points to is now
+  checked where the connection is made, which closes a DNS-rebinding gap.
+- Only the three newest pre-restore safety copies are kept.
+- Database changes now run as numbered migrations.
+
 **0.9.0** — Installation fixes. Install and upgrade with `sudo apt install
-./pantomath_<version>_amd64.deb`, which also installs `python3-venv`
+./omenwatch_<version>_amd64.deb`, which also installs `python3-venv`
 (`dpkg -i` left a fresh server half-installed). The package bundles wheels
 for Python 3.10 to 3.14, so it installs offline on Ubuntu 26.04 too.
-`pantomath-admin` run without sudo says to use sudo instead of hanging after a
+`omenwatch-admin` run without sudo says to use sudo instead of hanging after a
 traceback, and a damaged database no longer hangs it or the service.
 `setup-https` really disables nginx's default site, and the installer and
 `setup-code` show the HTTPS address once it's set up. Upgrades no longer keep
 code removed from a release; the program files belong to root; `apt remove`
-takes the `pantomath-admin` command with it (data is kept), and `apt purge`
-also removes Pantomath's nginx site and restores the default one. RPM
+takes the `omenwatch-admin` command with it (data is kept), and `apt purge`
+also removes OmenWatch's nginx site and restores the default one. RPM
 packaging is dropped.
 
 **0.8.1** — First-run setup needs a one-time setup code printed by the
-installer (`pantomath-admin setup-code` shows it again), so nobody else can
+installer (`omenwatch-admin setup-code` shows it again), so nobody else can
 claim a fresh install. "Forgot the Settings password?" on the sign-in page
-resets it with the recovery code. `pantomath-admin reset-settings-password`
+resets it with the recovery code. `omenwatch-admin reset-settings-password`
 now sets the new password in the terminal (`--clear` goes back to first-run
 setup and signs everyone out), and `sign-out-everyone` is new; admin commands
 run as the service user so they can't leave root-owned database files.
@@ -409,7 +463,7 @@ switches. Themed checkboxes, forms and tables (no more white boxes in dark
 mode). Indicators: the calendar now counts distinct indicators, the same
 unit as the table and the tab counts, so the numbers match (the tooltip
 also gives the number of articles); First seen and Last seen are all-time
-even when a day is selected; the drill-down lists when Pantomath saw each
+even when a day is selected; the drill-down lists when OmenWatch saw each
 article.
 
 **0.6.0** — Redesigned Live feed (dense list, detail panel, unread markers,

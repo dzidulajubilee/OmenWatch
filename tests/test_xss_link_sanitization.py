@@ -1,7 +1,7 @@
 """
 Regression coverage for a real, confirmed XSS: item.link (sourced from
 external RSS/Atom feed content, or a restored database backup — see
-pantomath/database/restore.py) was interpolated directly into
+omenwatch/database/restore.py) was interpolated directly into
 href="${i.link}" with no escaping in three places. escapeHtml() alone
 would NOT have been sufficient even if used, since it only escapes &, <,
 > for text-node content — it deliberately leaves quote characters

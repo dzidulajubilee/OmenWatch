@@ -46,7 +46,7 @@ function truncateAtSentence(text, targetLen, maxLen) {
 }
 
 // When an item was published, for display. The feed's own date unless it
-// is later than when Pantomath fetched the item (a publisher's clock or
+// is later than when OmenWatch fetched the item (a publisher's clock or
 // timezone is wrong) — the same rule as _EFFECTIVE_TS in api/routes.py.
 function effectiveTs(item) {
   const published = Number(item.published) || 0;
@@ -72,10 +72,10 @@ function fmtFull(ts) {
 }
 
 function timeTitle(item) {
-  return `Published ${fmtFull(effectiveTs(item))}. Seen by Pantomath ${fmtFull(item.fetched_at)}.`;
+  return `Published ${fmtFull(effectiveTs(item))}. Seen by OmenWatch ${fmtFull(item.fetched_at)}.`;
 }
 
-// Card time: when it was published, plus when Pantomath saw it if that
+// Card time: when it was published, plus when OmenWatch saw it if that
 // was much later — lists are still ordered by when items arrived, and a
 // newly added source's backlog would otherwise look out of order.
 function itemTimeLabel(item) {
@@ -98,13 +98,13 @@ function renderFeedCards(containerEl, items, opts) {
     <div class="item sev-${i.severity}" data-item-id="${i.id}">
       <div class="item-main">
         <div class="item-head">
-          <span class="src-tag" style="background:${i.source_color}22; color:${i.source_color}">
+          <span class="src-tag">
             ${sourceIconHtml(i.source_id, i.source_color)}
             ${escapeHtml(i.source_name)}
           </span>
           ${(i.vendors||[]).slice(0,2).map(v => `<span class="tag-chip" style="padding:2px 8px; margin:0;">${escapeHtml(v)}</span>`).join('')}
-          ${(i.actors||[]).slice(0,2).map(a => `<span class="tag-chip" style="padding:2px 8px; margin:0; color:var(--red); border-color:var(--red);">${escapeHtml(a)}</span>`).join('')}
-          ${(i.cves||[]).slice(0,2).map(c => `<span class="tag-chip" style="padding:2px 8px; margin:0; color:var(--signal); border-color:var(--signal);">${escapeHtml(c)}</span>`).join('')}
+          ${(i.actors||[]).slice(0,2).map(a => `<span class="tag-chip" style="padding:2px 8px; margin:0;">${escapeHtml(a)}</span>`).join('')}
+          ${(i.cves||[]).slice(0,2).map(c => `<span class="tag-chip" style="padding:2px 8px; margin:0;" class="mono">${escapeHtml(c)}</span>`).join('')}
           <span class="item-time" title="${escapeAttr(timeTitle(i))}">${escapeHtml(itemTimeLabel(i))}</span>
         </div>
         <div class="item-title"><a href="${safeHref(i.link)}" target="_blank" rel="noopener">${escapeHtml(i.title)}</a></div>

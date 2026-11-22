@@ -1,6 +1,6 @@
 import pytest
 
-from pantomath.intelligence.scoring import score_severity
+from omenwatch.news.scoring import score_severity
 
 
 def test_high_severity_keywords():

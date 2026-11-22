@@ -4,11 +4,11 @@ file..." and having it fail with a confusing, opaque error —
 
     Restore failed: Unexpected token '<', "<html> h"... is not valid JSON
 
-This happens whenever something between the browser and the Pantomath
+This happens whenever something between the browser and the OmenWatch
 app returns a non-JSON error body for the /api/restore POST — most
 commonly a reverse proxy (nginx) rejecting the upload with its own
 generic HTML error page (e.g. a 413 when the proxy's body-size limit is
-below Pantomath's own) before the request ever reaches the app. The old
+below OmenWatch's own) before the request ever reaches the app. The old
 handler called `await res.json()` unconditionally, which throws a raw
 SyntaxError on non-JSON input; that SyntaxError's message ("Unexpected
 token '<'...") is what a user is left staring at, with no indication of

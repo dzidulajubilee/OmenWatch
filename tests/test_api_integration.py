@@ -8,7 +8,7 @@ than re-testing every endpoint exhaustively.
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 
@@ -147,7 +147,7 @@ async def test_iocs_endpoint_paginates_through_all_distinct_values():
     deterministic (count desc, name asc) so items don't reshuffle
     between page requests.
     """
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -189,7 +189,7 @@ async def test_has_cve_filter_finds_cve_bearing_items_regardless_of_source_categ
     filtered by the source's manually-assigned category. has_cve=true
     finds it by content instead.
     """
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -215,7 +215,7 @@ async def test_has_cve_filter_finds_cve_bearing_items_regardless_of_source_categ
 
 async def test_has_actor_filter_finds_actor_bearing_items_regardless_of_source_category():
     """Same fix, applied to Malware: a detected threat actor is a content signal, not a source-category one."""
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -237,7 +237,7 @@ async def test_has_actor_filter_finds_actor_bearing_items_regardless_of_source_c
 
 
 async def test_reprocess_endpoint_backfills_legacy_item_via_api():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -268,7 +268,7 @@ def test_poll_all_endpoint_reports_source_count():
 
 
 async def test_items_count_matches_items_list_length_for_same_filters():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('sc1', 'S', 'http://c.com/f', 'news')")
@@ -294,3 +294,43 @@ def test_severity_filter_accepts_comma_separated_multiple_values():
     assert resp.status_code == 200
     count_resp = client.get("/api/items/count?severity=high,medium")
     assert count_resp.status_code == 200
+
+
+async def test_keyword_filter_matches_every_word_across_all_item_fields():
+    """
+    The Live feed search used to match the whole phrase against the title
+    and summary only, so a vendor tag, an indicator or the source name
+    could never be searched, and "fortinet exploited" missed an item
+    tagged Fortinet whose title says exploited.
+    """
+    from omenwatch.database.sqlite import get_db
+
+    db = await get_db()
+    await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('sk1', 'Acme Advisories', 'http://k.com/f', 'news')")
+    await db.execute(
+        """INSERT INTO items (id, source_id, title, summary, guid, fetched_at, vendors, actors, ips, emails, kev_cves)
+           VALUES ('k1', 'sk1', 'Firewall flaw exploited in the wild', 'Patch now.', 'gk1', 1000,
+                   'Fortinet', 'LockBit', '192.0.2.10', 'ops@example.com', 'CVE-2099-0001')"""
+    )
+    await db.execute(
+        """INSERT INTO items (id, source_id, title, summary, guid, fetched_at)
+           VALUES ('k2', 'sk1', 'Unrelated news', 'Nothing here.', 'gk2', 1001)"""
+    )
+    await db.commit()
+    await db.close()
+
+    def ids(keyword):
+        resp = client.get("/api/items", params={"keyword": keyword})
+        count = client.get("/api/items/count", params={"keyword": keyword}).json()["total"]
+        assert count == len(resp.json())
+        return [i["id"] for i in resp.json()]
+
+    assert ids("fortinet exploited") == ["k1"]   # words in different fields, any order
+    assert ids("exploited Fortinet") == ["k1"]
+    assert ids("lockbit") == ["k1"]
+    assert ids("192.0.2.10") == ["k1"]
+    assert ids("ops@example") == ["k1"]
+    assert ids("cve-2099-0001") == ["k1"]
+    assert sorted(ids("acme")) == ["k1", "k2"]  # source name
+    assert ids("fortinet unrelated") == []        # every word must match
+    assert ids("100%") == []                      # LIKE wildcards are literal

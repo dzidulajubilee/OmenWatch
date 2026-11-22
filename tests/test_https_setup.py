@@ -1,5 +1,5 @@
 """
-Tests for pantomath/https_setup.py's decision logic. Real end-to-end
+Tests for omenwatch/https_setup.py's decision logic. Real end-to-end
 verification (actual nginx install, actual self-signed cert, actual
 HTTPS proxying, actual WebSocket 101 upgrade through the proxy) was done
 directly in a real sandbox with real nginx during development — these
@@ -20,20 +20,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pantomath import https_setup
+from omenwatch import https_setup
 
 
 @pytest.fixture(autouse=True)
 def _isolated_paths(tmp_path, monkeypatch):
     """Redirects every hardcoded /etc/nginx,/etc/systemd path into a throwaway tmp_path, so tests never touch the real filesystem."""
     monkeypatch.setattr(https_setup, "NGINX_SSL_DIR", tmp_path / "nginx-ssl")
-    monkeypatch.setattr(https_setup, "CERT_PATH", tmp_path / "nginx-ssl" / "pantomath.crt")
-    monkeypatch.setattr(https_setup, "KEY_PATH", tmp_path / "nginx-ssl" / "pantomath.key")
+    monkeypatch.setattr(https_setup, "CERT_PATH", tmp_path / "nginx-ssl" / "omenwatch.crt")
+    monkeypatch.setattr(https_setup, "KEY_PATH", tmp_path / "nginx-ssl" / "omenwatch.key")
     sites_enabled = tmp_path / "sites-enabled"
     sites_enabled.mkdir()
     monkeypatch.setattr(https_setup, "SITES_ENABLED_DIR", sites_enabled)
-    monkeypatch.setattr(https_setup, "SITE_AVAILABLE", tmp_path / "sites-available" / "pantomath")
-    monkeypatch.setattr(https_setup, "SITE_ENABLED", sites_enabled / "pantomath")
+    monkeypatch.setattr(https_setup, "SITE_AVAILABLE", tmp_path / "sites-available" / "omenwatch")
+    monkeypatch.setattr(https_setup, "SITE_ENABLED", sites_enabled / "omenwatch")
     monkeypatch.setattr(https_setup, "DEFAULT_SITE_ENABLED", sites_enabled / "default")
     monkeypatch.setattr(https_setup, "SYSTEMD_OVERRIDE_DIR", tmp_path / "systemd-override")
     monkeypatch.setattr(https_setup, "SYSTEMD_OVERRIDE_FILE", tmp_path / "systemd-override" / "override.conf")
@@ -143,18 +143,18 @@ def test_config_file_contains_the_correct_port_and_websocket_headers():
     assert "return 301 https://$host$request_uri;" in config
 
 
-def test_config_raises_body_size_limit_above_pantomaths_own_restore_upload_cap():
+def test_config_raises_body_size_limit_above_omenwatchs_own_restore_upload_cap():
     """
     Real reported bug: nginx's own default client_max_body_size (1MB) is
-    far below MAX_UPLOAD_BYTES in pantomath/database/restore.py (2GB) —
+    far below MAX_UPLOAD_BYTES in omenwatch/database/restore.py (2GB) —
     without an explicit client_max_body_size in the generated config, a
     real database-restore upload gets rejected by nginx ITSELF with its
     own generic HTML 413 error page before the request ever reaches
-    Pantomath. The frontend then fails trying to JSON-parse that HTML
+    OmenWatch. The frontend then fails trying to JSON-parse that HTML
     body, surfacing as a confusing "Unexpected token '<'" error that
     looks like an app bug rather than a proxy config gap.
     """
-    from pantomath.database.restore import MAX_UPLOAD_BYTES
+    from omenwatch.database.restore import MAX_UPLOAD_BYTES
 
     https_setup.setup_https(assume_yes=True)
     config = https_setup.SITE_AVAILABLE.read_text()
@@ -166,7 +166,7 @@ def test_config_raises_body_size_limit_above_pantomaths_own_restore_upload_cap()
     configured_bytes = int(value) * multiplier
     assert configured_bytes >= MAX_UPLOAD_BYTES, (
         f"client_max_body_size ({configured_bytes} bytes) must be at least as large as "
-        f"Pantomath's own restore-upload cap ({MAX_UPLOAD_BYTES} bytes), or nginx will "
+        f"OmenWatch's own restore-upload cap ({MAX_UPLOAD_BYTES} bytes), or nginx will "
         f"reject valid restore uploads before the app's own (more informative) validation "
         f"ever runs"
     )
@@ -175,7 +175,7 @@ def test_config_raises_body_size_limit_above_pantomaths_own_restore_upload_cap()
 def test_default_site_is_moved_out_of_sites_enabled_not_deleted(monkeypatch):
     """
     Real bug: nginx loads EVERY file in sites-enabled/, so renaming the default
-    site to default.disabled-by-pantomath inside that folder left it active
+    site to default.disabled-by-omenwatch inside that folder left it active
     (http:// showed the nginx welcome page). It must leave sites-enabled/
     entirely, into sites-available/, and still not be deleted.
     """
@@ -185,10 +185,10 @@ def test_default_site_is_moved_out_of_sites_enabled_not_deleted(monkeypatch):
     https_setup.setup_https(assume_yes=False)
 
     assert not https_setup.DEFAULT_SITE_ENABLED.exists()
-    assert not (https_setup.SITES_ENABLED_DIR / "default.disabled-by-pantomath").exists()
-    assert [p.name for p in https_setup.SITES_ENABLED_DIR.iterdir()] == ["pantomath"], \
-        "nothing but pantomath may remain in sites-enabled/"
-    backup = https_setup.SITE_AVAILABLE.parent / "default.disabled-by-pantomath"
+    assert not (https_setup.SITES_ENABLED_DIR / "default.disabled-by-omenwatch").exists()
+    assert [p.name for p in https_setup.SITES_ENABLED_DIR.iterdir()] == ["omenwatch"], \
+        "nothing but omenwatch may remain in sites-enabled/"
+    backup = https_setup.SITE_AVAILABLE.parent / "default.disabled-by-omenwatch"
     assert backup.read_text() == "stock nginx default site"
 
 
@@ -202,20 +202,20 @@ def test_default_site_symlink_keeps_pointing_at_the_real_file(tmp_path):
     https_setup.setup_https(assume_yes=True)
 
     assert not https_setup.DEFAULT_SITE_ENABLED.is_symlink()
-    moved = https_setup.SITE_AVAILABLE.parent / "default.disabled-by-pantomath"
+    moved = https_setup.SITE_AVAILABLE.parent / "default.disabled-by-omenwatch"
     assert moved.is_symlink() and moved.resolve() == real.resolve()
     assert real.read_text() == "stock nginx default site"
 
 
 def test_site_left_in_sites_enabled_by_an_earlier_version_is_repaired():
-    """Servers where the old version already ran have default.disabled-by-pantomath inside sites-enabled/."""
-    legacy = https_setup.SITES_ENABLED_DIR / "default.disabled-by-pantomath"
+    """Servers where the old version already ran have default.disabled-by-omenwatch inside sites-enabled/."""
+    legacy = https_setup.SITES_ENABLED_DIR / "default.disabled-by-omenwatch"
     legacy.write_text("stock nginx default site")
 
     https_setup.setup_https(assume_yes=True)
 
     assert not legacy.exists()
-    assert (https_setup.SITE_AVAILABLE.parent / "default.disabled-by-pantomath").read_text() == "stock nginx default site"
+    assert (https_setup.SITE_AVAILABLE.parent / "default.disabled-by-omenwatch").read_text() == "stock nginx default site"
 
 
 def test_https_is_reported_as_set_up_only_once_the_site_is_enabled():
@@ -269,3 +269,36 @@ def test_nginx_is_started_not_just_reloaded():
     assert ("enable", "nginx") in systemctl_calls, f"expected 'systemctl enable nginx', got: {systemctl_calls}"
     assert ("reload-or-restart", "nginx") in systemctl_calls, f"expected 'systemctl reload-or-restart nginx', got: {systemctl_calls}"
     assert ("reload", "nginx") not in systemctl_calls, "a bare 'reload' does nothing if nginx wasn't already running — this is the exact bug being regression-tested"
+
+
+def test_new_certificate_names_the_servers_hosts_and_addresses(monkeypatch):
+    monkeypatch.setattr(https_setup.socket, "getfqdn", lambda: "omenwatch.corp.example")
+    monkeypatch.setattr(https_setup.socket, "gethostname", lambda: "omenwatch")
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        result = MagicMock(returncode=0, stderr="")
+        result.stdout = "192.168.1.50 fe80::1 2001:db8::5\n" if cmd[:2] == ["hostname", "-I"] else ""
+        if cmd[0] == "openssl":
+            https_setup.CERT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            https_setup.CERT_PATH.write_text("CERT")
+            https_setup.KEY_PATH.write_text("KEY")
+        return result
+    monkeypatch.setattr(https_setup.subprocess, "run", fake_run)
+    https_setup.setup_https(assume_yes=True)
+    openssl = next(c for c in calls if c[0] == "openssl")
+    assert openssl[openssl.index("-subj") + 1] == "/CN=omenwatch.corp.example"
+    assert openssl[openssl.index("-addext") + 1] == (
+        "subjectAltName=DNS:omenwatch.corp.example,DNS:omenwatch,DNS:omenwatch.local,DNS:localhost,"
+        "IP:127.0.0.1,IP:192.168.1.50,IP:2001:db8::5")          # link-local fe80:: left out
+
+
+def test_renew_certificate_replaces_it_and_keeps_the_old_one():
+    https_setup.NGINX_SSL_DIR.mkdir(parents=True, exist_ok=True)
+    https_setup.CERT_PATH.write_text("OLD CERT")
+    https_setup.KEY_PATH.write_text("OLD KEY")
+    https_setup.setup_https(assume_yes=True, renew_certificate=True)
+    assert https_setup.CERT_PATH.read_text() == "FAKE CERT FOR TESTING"
+    kept = sorted(p.name for p in https_setup.NGINX_SSL_DIR.glob("*.replaced-*"))
+    assert [n.split(".replaced-")[0] for n in kept] == ["omenwatch.crt", "omenwatch.key"]

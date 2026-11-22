@@ -20,3 +20,6 @@ data/
 *.pem
 *.key
 *.crt
+
+# Downloaded build inputs (bundled Python)
+installer/.cache/

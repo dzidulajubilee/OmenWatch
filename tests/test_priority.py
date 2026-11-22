@@ -1,17 +1,17 @@
 """
 0.8.0 priority: Critical / High / Medium / Low from the article's wording,
-CISA KEV (Exploited) and Our stack (Affects us) — see intelligence/priority.py.
+CISA KEV (Exploited) and Our stack (Affects us) — see news/priority.py.
 """
 import time
 
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.alerts.matcher import matches_webhook
-from pantomath.app import app
-from pantomath.database.sqlite import get_db, init_db
-from pantomath.intelligence.priority import compute_priority, explain_priority
-from pantomath.intelligence.scoring import score_severity_detail
+from omenwatch.alerts.matcher import matches_webhook
+from omenwatch.app import app
+from omenwatch.database.sqlite import get_db, init_db
+from omenwatch.news.priority import compute_priority, explain_priority
+from omenwatch.news.scoring import score_severity_detail
 
 client = TestClient(app)
 
@@ -78,7 +78,7 @@ async def test_priority_follows_our_stack_and_the_catalog():
     db = await get_db()
     await db.execute("INSERT INTO kev (cve) VALUES ('CVE-2099-7')")
     await db.commit()
-    from pantomath.intelligence.kev import recompute_item_kev
+    from omenwatch.news.kev import recompute_item_kev
     await recompute_item_kev(db)
     await db.commit()
     await db.close()
@@ -93,6 +93,7 @@ async def test_priority_follows_our_stack_and_the_catalog():
 async def test_items_stored_before_0_8_get_their_priority_on_upgrade():
     db = await get_db()
     await db.execute("UPDATE items SET content_severity = '', severity = 'high', watch_hits = 'FortiGate' WHERE id = 'a'")
+    await db.execute("PRAGMA user_version = 0")   # a database from before the numbered migrations
     await db.commit()
     await db.close()
     await init_db()

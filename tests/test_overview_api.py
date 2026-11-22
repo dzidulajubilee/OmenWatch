@@ -12,8 +12,8 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
-from pantomath.database.sqlite import get_db
+from omenwatch.app import app
+from omenwatch.database.sqlite import get_db
 
 client = TestClient(app)
 HOUR = 3600
@@ -99,7 +99,7 @@ def test_hours_is_clamped():
     assert _overview(hours=999999)["hours"] == 24 * 90
 
 
-def test_new_since_counts_by_when_pantomath_stored_items():
+def test_new_since_counts_by_when_omenwatch_stored_items():
     now = time.time()
     assert _overview(since=now - 2 * HOUR)["new_since"] == 2  # both fetched an hour ago
     assert _overview(since=now + 999)["new_since"] == 4       # future `since` falls back to 24 h
@@ -130,3 +130,28 @@ def test_existing_stats_endpoint_is_unchanged():
     stats = client.get("/api/stats").json()
     for key in ("total_articles", "new_today", "critical_alerts", "sources_active", "articles_by_day"):
         assert key in stats
+
+
+def test_timeline_buckets_the_range_for_the_main_chart():
+    """2.0: hourly for 24 hours, daily for longer ranges; critical and high apart from the rest."""
+    day = client.get("/api/overview", params={"hours": 24, "since": time.time() - 4 * HOUR}).json()["timeline"]
+    assert day["step"] == HOUR and len(day["buckets"]) == 24
+    totals = {k: sum(b[k] for b in day["buckets"]) for k in ("critical", "high", "other", "new")}
+    # fresh high and the future-dated one (counted when stored), recent medium; two stored after `since`
+    assert totals == {"critical": 0, "high": 2, "other": 1, "new": 2}
+    week = client.get("/api/overview", params={"hours": 168}).json()["timeline"]
+    assert week["step"] == 86400 and len(week["buckets"]) == 7
+    assert sum(b["high"] for b in week["buckets"]) == 2 and sum(b["other"] for b in week["buckets"]) == 2
+
+
+async def test_by_day_counts_critical_items():
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO items (id, source_id, guid, title, link, summary, published, fetched_at, severity)
+           VALUES ('i-crit', 's-ok', 'g-crit', 'Critical', '', '', ?, ?, 'critical')""",
+        (time.time() - HOUR, time.time() - HOUR),
+    )
+    await db.commit()
+    await db.close()
+    by_day = client.get("/api/overview").json()["by_day"]
+    assert sum(d["critical"] for d in by_day) == 1
