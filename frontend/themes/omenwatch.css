@@ -129,34 +129,11 @@ header.topbar{
   border-bottom:1px solid var(--line);
 }
 .brand{display:flex; align-items:center; gap:14px;}
-.brand-mark{
-  width:34px; height:34px;
-  border:1px solid var(--brand-dim);
-  border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-  flex-shrink:0;
-}
-.brand-mark::before{
-  content:'';
-  position:absolute; inset:-1px;
-  border-radius:50%;
-  border:1px solid var(--brand);
-  opacity:0;
-  animation:ping 2.4s ease-out infinite;
-}
-.brand-mark span{
-  width:6px; height:6px; background:var(--brand); border-radius:50%;
-  box-shadow:0 0 8px var(--brand);
-}
-@keyframes ping{
-  0%{transform:scale(1); opacity:0.7;}
-  80%{transform:scale(1.9); opacity:0;}
-  100%{opacity:0;}
-}
+/* The mark is flat and still: one color, no glow, nothing looping. */
+.brand-mark{display:block; flex-shrink:0; color:var(--brand);}
 .brand h1{
-  font-family:var(--font-display); font-weight:700; font-size:19px;
-  letter-spacing:0.02em; color:var(--heading);
+  font-family:var(--font-brand); font-weight:500; font-size:18px;
+  letter-spacing:0; color:var(--heading);
 }
 .brand .sub{
   font-size:10.5px; color:var(--text-dim); letter-spacing:0.14em; text-transform:uppercase;
@@ -593,7 +570,7 @@ main{padding:22px 28px 60px;}
    ------------------------------------------------------------------ */
 .visually-hidden{position:absolute !important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
 .topbar .brand{display:flex; align-items:center; gap:12px; width:188px; flex-shrink:0; text-decoration:none; color:var(--heading);}
-.topbar .brand h1{font-family:var(--font-brand); font-weight:700; font-size:17px; letter-spacing:0.06em; color:var(--heading);}
+.topbar .brand h1{font-family:var(--font-brand); font-weight:500; font-size:17px; letter-spacing:0; color:var(--heading);}
 .menu-btn{
   display:none; width:40px; height:40px; align-items:center; justify-content:center; flex-shrink:0;
   background:transparent; border:1px solid var(--line-bright); border-radius:8px; color:var(--text); cursor:pointer;
@@ -753,7 +730,6 @@ main{padding:22px 28px 60px;}
 }
 @media (prefers-reduced-motion: reduce){
   .nav-rail{transition:none;}
-  .brand-mark::before{animation:none;}
 }
 
 
@@ -1287,7 +1263,7 @@ body.signed-out{overflow:hidden;}
   background:conic-gradient(from 0deg, transparent 0deg, transparent 280deg, rgba(79,216,196,.22) 350deg, rgba(79,216,196,.5) 360deg);
   animation:radar-spin 6s linear infinite;
 }
-.radar-core{position:absolute; left:50%; top:50%; width:84px; height:84px; transform:translate(-50%,-50%); filter:drop-shadow(0 0 26px rgba(79,216,196,.5));}
+.radar-core{position:absolute; left:50%; top:50%; width:84px; height:84px; transform:translate(-50%,-50%); color:#4FD8C4;}  /* the hero is dark in both themes */
 .blip{position:absolute; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%; opacity:0; background:#4fd8c4; box-shadow:0 0 14px 3px rgba(79,216,196,.55); animation:blip 6s ease-out infinite;}
 .blip.b1{left:68%; top:24%; animation-delay:.58s;}
 .blip.b2{left:78%; top:62%; animation-delay:1.88s; background:#FF8A7A; box-shadow:0 0 14px 3px rgba(255,138,122,.6);}
@@ -1309,7 +1285,8 @@ body.signed-out{overflow:hidden;}
 .signin-card{width:100%; max-width:400px;}
 .signin-card.shake{animation:shake .38s;}
 @keyframes shake{20%{transform:translateX(-7px);} 40%{transform:translateX(7px);} 60%{transform:translateX(-4px);} 80%{transform:translateX(3px);}}
-.signin-brand{display:flex; align-items:center; gap:11px; margin-bottom:36px; font-size:15px; font-weight:700; letter-spacing:.14em; color:var(--heading);}
+.signin-brand{display:flex; align-items:center; gap:12px; margin-bottom:36px; font-family:var(--font-brand); font-size:18px; font-weight:500; letter-spacing:0; color:var(--heading);}
+.signin-mark{display:block; flex-shrink:0; color:var(--brand);}
 .signin-title{font-family:var(--font-ui); font-size:29px; font-weight:600; letter-spacing:-.01em; color:var(--heading);}
 .signin-sub{margin-top:8px; font-size:14.5px; line-height:1.5; color:var(--text-dim);}
 .signin-form{display:flex; flex-direction:column;}
