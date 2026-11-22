@@ -33,4 +33,12 @@ async def _backfill_priority(db) -> None:
         await db.commit()
 
 
-STEPS = [baseline]
+async def item_entities(db) -> None:
+    """correlation: one row per CVE, indicator, actor and vendor an article mentions"""
+    from omenwatch.intelligence.correlation import BACKFILL, SCHEMA
+
+    await db.executescript(SCHEMA)
+    await db.executescript(BACKFILL)
+
+
+STEPS = [baseline, item_entities]

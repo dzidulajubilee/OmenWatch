@@ -417,9 +417,13 @@ once (Ctrl+Shift+R).
   up yet"), unexpected scheduler errors, catalog download failures and
   retention clean-ups. Individual feed failures are shown on the Sources page
   rather than logged; webhook delivery results appear in Settings, Alerts.
-- **A health check for monitoring tools:** `GET /api/auth/status` answers
-  without signing in and returns JSON with the version; anything else needs
-  an API key.
+- **A health check for monitoring tools (2.0):** `GET /api/health` answers
+  without signing in: 200 when the databases open, both background workers
+  run and there is disk space; 503 naming the check that failed.
+- **Prometheus (2.0):** `GET /metrics` with an API key: source and IOC feed
+  state, last successes, item and indicator counts, SIEM lookup counts and
+  response times. The scrape configuration is in the API reference
+  (Monitoring).
 
 ## 12. Security checklist
 

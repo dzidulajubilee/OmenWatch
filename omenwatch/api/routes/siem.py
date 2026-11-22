@@ -17,24 +17,29 @@ from omenwatch.api.routes.ioc import LookupIn, indicator_conditions, ioc_db, loo
 from omenwatch.ioc.db import get_ioc_db
 from omenwatch.ioc.hits import hit_counter
 from omenwatch.ioc.lookup import iso, lookup_values, parse_since
+from omenwatch.monitoring.metrics import lookups as lookup_metrics
 
 
 @siem_router.get("/lookup")
 async def v1_lookup_one(value: str, include_expired: bool = False):
+    started = time.perf_counter()
     matched: list[int] = []
     async with ioc_db() as db:
         result = await lookup_values(db, [value.strip()], include_expired, hits=matched)
     hit_counter.record(matched, 1)
+    lookup_metrics.record("single", 1, len(matched), time.perf_counter() - started)
     return result["results"][0]
 
 
 @siem_router.post("/lookup")
 async def v1_lookup(body: LookupIn):
+    started = time.perf_counter()
     values = lookup_list(body)
     matched: list[int] = []
     async with ioc_db() as db:
         result = await lookup_values(db, values, body.include_expired, hits=matched)
     hit_counter.record(matched, len(values))
+    lookup_metrics.record("batch", len(values), len(matched), time.perf_counter() - started)
     # Only plain JSON types: skip FastAPI's encoder, slow on a 1,000-value answer.
     return JSONResponse(result)
 

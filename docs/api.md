@@ -17,8 +17,9 @@ How the pieces fit together is in [how-it-works.md](how-it-works.md#9-the-api-la
 8. [Settings-level endpoints](#8-settings-level-endpoints)
 9. [IOC database](#9-ioc-database)
 10. [Lookup API for SIEMs (/api/v1)](#10-lookup-api-for-siems-apiv1)
-11. [WebSocket](#11-websocket)
-12. [Examples](#12-examples)
+11. [Monitoring (2.0)](#11-monitoring-20)
+12. [WebSocket](#12-websocket)
+13. [Examples](#13-examples)
 
 ---
 
@@ -130,6 +131,16 @@ Each item:
 
 To list every item mentioning an indicator, use
 `/api/items?ioc_type=ip&ioc_value=203.0.113.7`.
+
+### Correlation (2.0)
+
+Articles are linked through what they mention: CVEs, IP addresses, hashes,
+email addresses, actors and vendors.
+
+| Endpoint | Parameters | Returns |
+|---|---|---|
+| `GET /api/items/{id}/related` | `limit` (20, at most 100) | `entities`: everything the article mentions, `[{kind, value, articles}]`, with `indicator` (the IOC database's match, as in `/api/v1/lookup`) for active indicators and `kev` for exploited CVEs. `related`: other articles, `[{id, title, link, source_id, source_name, published, severity, score, shared: [{kind, value}]}]`, best first. A shared IP, hash or email scores 3, a CVE 2, an actor 1; vendors and values in more than 200 articles never relate two articles |
+| `GET /api/correlate` | `kind` (`cve`, `ip`, `hash`, `email`, `actor`, `vendor`, or the IOC database types `ipv4`, `md5`, `sha1`, `sha256`), `value`, `limit` (50, at most 500) | `{kind, value, articles, items, mentioned_with}`: the newest articles mentioning the value and the 15 values mentioned with it most often (vendors left out), plus `indicator` and `kev` when they apply |
 
 ## 6. Dashboard and analytics
 
@@ -338,7 +349,38 @@ IOC database tab ("which indicators your network actually touched"). Hits
 are added up in memory and written every 30 seconds, so lookups never write
 to the database; exports don't count.
 
-## 11. WebSocket
+## 11. Monitoring (2.0)
+
+**`GET /api/health`** answers without signing in: `200 {"status": "ok",
+"checks": {...}}`, or `503` with `"status": "fail"` and each check marked
+`ok` or `fail`. The checks are `database`, `ioc_database`, `news_polling`,
+`ioc_feeds` (the two background workers are running) and `disk_space` (at
+least 200 MB free next to the database).
+
+**`GET /metrics`** is a Prometheus scrape target and needs an API key, like
+the rest of the dashboard's data:
+
+```yaml
+scrape_configs:
+  - job_name: omenwatch
+    scheme: https
+    authorization: { credentials: pmk_... }   # Settings, Security, API keys
+    static_configs: [{ targets: ["omenwatch.example:443"] }]
+```
+
+It reports `omenwatch_info{version}`, `omenwatch_start_time_seconds`,
+`omenwatch_resident_memory_bytes`, `omenwatch_websocket_clients`;
+per news source `omenwatch_source_up`, `omenwatch_source_last_success_timestamp_seconds`,
+`omenwatch_source_poll_duration_seconds`, and `omenwatch_sources{state}`,
+`omenwatch_items`; per IOC feed `omenwatch_ioc_feed_up`,
+`omenwatch_ioc_feed_last_success_timestamp_seconds`, and
+`omenwatch_ioc_indicators{type,status}`; for SIEM lookups since the service
+started `omenwatch_siem_lookup_requests_total{endpoint}`,
+`omenwatch_siem_lookup_values_total`, `omenwatch_siem_lookup_matches_total` and the
+histogram `omenwatch_siem_lookup_duration_seconds{endpoint}`. Sources and
+feeds are labelled with their id and name, never their address.
+
+## 12. WebSocket
 
 `/ws` (same host, `wss://` behind HTTPS). The browser's sign-in cookie is
 checked when it connects; without a valid one the connection is closed with
@@ -347,7 +389,7 @@ code **4401**. Messages are JSON:
 - `{"type": "new_items", "items": [ …items as in section 4… ]}`: just stored;
 - `{"type": "sources_changed"}`: a source was added, changed or removed.
 
-## 12. Examples
+## 13. Examples
 
 Critical and high items from the last 24 hours:
 
