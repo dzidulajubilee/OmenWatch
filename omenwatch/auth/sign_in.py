@@ -31,7 +31,6 @@ an authenticating reverse proxy, and for the test suite).
 """
 import hashlib
 import hmac
-import os
 import re
 import secrets
 import time
@@ -39,6 +38,7 @@ import uuid
 
 from omenwatch.alerts.webhook_keys import hash_key, new_salt
 from omenwatch.auth import settings_auth
+from omenwatch.core import config
 
 COOKIE_NAME = "omenwatch_session"
 REMEMBER_SECONDS = 90 * 86400
@@ -60,7 +60,7 @@ _cache: dict[str, tuple[dict, float]] = {}              # token hash -> (session
 
 
 def open_dashboard() -> bool:
-    return os.environ.get("OMENWATCH_OPEN_DASHBOARD", "") == "1"
+    return config.open_dashboard()
 
 
 def hash_token(token: str) -> str:

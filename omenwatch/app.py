@@ -1,7 +1,6 @@
-import pathlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -9,13 +8,18 @@ from omenwatch import __version__
 from omenwatch.api.dependencies import ioc_protected_router, ioc_router, siem_router
 from omenwatch.api.routes import auth_router, broadcast, make_poll_now_route, protected_router, router
 from omenwatch.api.routes.ioc import ioc_scheduler
+from omenwatch.core import config
+from omenwatch.core.logging import get_logger
+from omenwatch.core.logging import setup as setup_logging
+from omenwatch.core.security import add_security_headers
 from omenwatch.database.sqlite import init_db
 from omenwatch.feeds.scheduler import Scheduler
 from omenwatch.ioc.db import init_ioc_db
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-FRONTEND = ROOT / "frontend"
+FRONTEND = config.APP_ROOT / "frontend"
 
+setup_logging()
+log = get_logger("app")
 scheduler = Scheduler(broadcast)
 
 
@@ -29,8 +33,8 @@ async def lifespan(app: FastAPI):
     db = await get_db()
     try:
         if await setup_code.ensure_setup_code(db):
-            print("[omenwatch] Not set up yet. Open the dashboard and enter the setup code; "
-                  "show it on this server with: sudo omenwatch-admin setup-code")
+            log.info("Not set up yet. Open the dashboard and enter the setup code; "
+                     "show it on this server with: sudo omenwatch-admin setup-code")
     finally:
         await db.close()
     await scheduler.start()
@@ -39,7 +43,7 @@ async def lifespan(app: FastAPI):
     try:
         await init_ioc_db()
     except Exception as e:
-        print(f"[omenwatch] The IOC database is unavailable: {e}")
+        log.error("The IOC database is unavailable: %s", e)
     await ioc_scheduler.start()
     yield
     scheduler.stop()
@@ -48,24 +52,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="OmenWatch", lifespan=lifespan)
 
-# On every response. Other sites can't frame the dashboard (clickjacking
-# the Settings buttons), browsers never guess a type other than the one
-# sent, and links out to articles don't tell publishers this server's
-# address.
-SECURITY_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "SAMEORIGIN",
-    "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
-    "Referrer-Policy": "same-origin",
-}
+add_security_headers(app)
 
 
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
-    for name, value in SECURITY_HEADERS.items():
-        response.headers.setdefault(name, value)
-    return response
 
 app.include_router(auth_router)
 app.include_router(router)

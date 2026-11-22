@@ -16,13 +16,11 @@ import time
 import urllib.error
 import urllib.request
 
-from omenwatch.database.sqlite import DB_PATH
+from omenwatch.core import config
 from omenwatch.feeds.parser import domain_from_url
 
 FAVICON_SERVICE = "https://www.google.com/s2/favicons?sz=64&domain={domain}"
-ICON_CACHE_DIR = os.environ.get(
-    "OMENWATCH_ICON_CACHE", os.path.join(os.path.dirname(DB_PATH), "icons")
-)
+ICON_CACHE_DIR = config.ICON_CACHE_DIR
 FETCH_TIMEOUT = 6  # seconds — don't let a slow/dead favicon host stall a request
 NEGATIVE_CACHE_TTL = 3600  # don't retry a known-failed fetch for an hour
 MAX_ICON_BYTES = 512 * 1024

@@ -18,10 +18,11 @@ import os
 
 import aiosqlite
 
-from omenwatch.database.sqlite import DB_PATH, _configure, _existing_columns
+from omenwatch.core import config
+from omenwatch.database.sqlite import _configure, _existing_columns
 from omenwatch.ioc.models import IOC_INDEX_SCHEMA, IOC_MIGRATIONS, IOC_TABLE_SCHEMA
 
-IOC_DB_PATH = os.environ.get("OMENWATCH_IOC_DB", os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "ioc.db"))
+IOC_DB_PATH = config.IOC_DB_PATH
 
 
 class IocUnavailable(Exception):

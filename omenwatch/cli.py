@@ -21,6 +21,8 @@ import os
 import socket
 import sys
 
+from omenwatch.core import config
+
 
 def _as_service_user() -> None:
     """
@@ -73,7 +75,7 @@ def _dashboard_url() -> str:
         # Once nginx fronts OmenWatch and the service is restricted to
         # 127.0.0.1, the plain-HTTP port no longer answers from the network.
         return f"https://{host}"
-    return f"http://{host}:{os.environ.get('OMENWATCH_PORT', '7373')}"
+    return f"http://{host}:{config.port()}"
 
 
 async def show_setup_code(bare: bool = False) -> int:

@@ -14,8 +14,11 @@ import time
 
 from omenwatch.alerts.dispatcher import dispatch_webhooks_for_items
 from omenwatch.connectors.registry import get_connector
+from omenwatch.core.logging import get_logger
 from omenwatch.database.sqlite import get_db
 from omenwatch.intelligence.kev import kev_due, refresh_kev
+
+log = get_logger("scheduler")
 
 RETENTION_CHECK_INTERVAL = 3600  # seconds
 
@@ -46,7 +49,7 @@ class Scheduler:
                 await self._maybe_run_retention()
                 await self._maybe_refresh_kev()
             except Exception as e:
-                print(f"[scheduler] error: {e}")
+                log.error("poll loop error: %s", e)
             await asyncio.sleep(self.check_interval)
 
     async def poll_all(self):
@@ -117,9 +120,9 @@ class Scheduler:
         try:
             status = await refresh_kev(db)
             if status["error"]:
-                print(f"[scheduler] KEV catalog update failed: {status['error']}")
+                log.warning("KEV catalog update failed: %s", status["error"])
         except Exception as e:
-            print(f"[scheduler] KEV catalog update error: {e}")
+            log.error("KEV catalog update error: %s", e)
         finally:
             await db.close()
 
@@ -145,6 +148,6 @@ class Scheduler:
             cursor = await db.execute("DELETE FROM items WHERE fetched_at < ?", (cutoff,))
             await db.commit()
             if cursor.rowcount:
-                print(f"[scheduler] retention cleanup: removed {cursor.rowcount} item(s) older than {retention_days}d")
+                log.info("retention cleanup: removed %d item(s) older than %dd", cursor.rowcount, retention_days)
         finally:
             await db.close()

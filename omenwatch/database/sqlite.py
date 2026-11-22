@@ -1,21 +1,15 @@
 import json
 import os
-import pathlib
 import uuid
 
 import aiosqlite
 
+from omenwatch.core import config
 from omenwatch.database.models import INDEX_SCHEMA, MIGRATIONS, TABLE_SCHEMA
 
-DB_PATH = os.environ.get("OMENWATCH_DB", "/var/lib/omenwatch/omenwatch.db")
-
-# Optional starter list. Ships EMPTY by default so no source ever appears
-# that the user didn't explicitly add or opt into. If you want a curated
-# starter pack, add entries here yourself before first install.
-CONFIG_PATH = os.environ.get(
-    "OMENWATCH_FEEDS_CONFIG",
-    str(pathlib.Path(__file__).resolve().parents[2] / "config" / "feeds.json"),
-)
+# From omenwatch.core.config; module names so tests and the CLI can point them elsewhere.
+DB_PATH = config.DB_PATH
+CONFIG_PATH = config.FEEDS_CONFIG_PATH
 
 
 async def get_db():

@@ -8,10 +8,13 @@ has reported for their lifetime.
 import asyncio
 import time
 
+from omenwatch.core.logging import get_logger
 from omenwatch.ioc.db import IocUnavailable, get_ioc_db
 from omenwatch.ioc.feeds import run_feed
 from omenwatch.ioc.hits import hit_counter
 from omenwatch.ioc.store import expire_due
+
+log = get_logger("ioc")
 
 EXPIRY_CHECK_INTERVAL = 3600
 
@@ -39,9 +42,9 @@ class IocScheduler:
                 await self.flush_hits()
                 await self._maybe_expire()
             except IocUnavailable as e:
-                print(f"[ioc] {e}")
+                log.warning("%s", e)
             except Exception as e:
-                print(f"[ioc] scheduler error: {e}")
+                log.error("scheduler error: %s", e)
             await asyncio.sleep(self.check_interval)
 
     async def flush_hits(self) -> None:
@@ -57,7 +60,7 @@ class IocScheduler:
         try:
             await self.flush_hits()
         except Exception as e:
-            print(f"[ioc] could not write SIEM hit counts on shutdown: {e}")
+            log.error("could not write SIEM hit counts on shutdown: %s", e)
 
     async def run_due(self) -> None:
         db = await get_ioc_db()
@@ -101,6 +104,6 @@ class IocScheduler:
         try:
             expired, deleted = await expire_due(db, now)
             if expired or deleted:
-                print(f"[ioc] expiry: {expired} indicator(s) expired, {deleted} long-expired removed")
+                log.info("expiry: %d indicator(s) expired, %d long-expired removed", expired, deleted)
         finally:
             await db.close()
