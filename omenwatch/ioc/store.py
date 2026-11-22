@@ -155,6 +155,28 @@ class Allowlist:
         return False
 
 
+async def rows_by_type_value(db, columns: str, pairs) -> dict[tuple[str, str], dict]:
+    """
+    {(type, value): row} for the stored indicators among `pairs`, through the
+    UNIQUE (type, value) index: one query per type and 900 values.
+    """
+    by_type: dict[str, set[str]] = {}
+    for type_, value in pairs:
+        by_type.setdefault(type_, set()).add(value)
+    found = {}
+    for type_, values in by_type.items():
+        values = sorted(values)
+        for start in range(0, len(values), 900):
+            chunk = values[start:start + 900]
+            cur = await db.execute(
+                f"SELECT {columns} FROM indicators WHERE type = ? AND value IN ({','.join('?' * len(chunk))})",
+                [type_, *chunk],
+            )
+            for r in await cur.fetchall():
+                found[(r["type"], r["value"])] = dict(r)
+    return found
+
+
 async def load_allowlist(db) -> Allowlist:
     cur = await db.execute("SELECT type, value FROM allowlist")
     return Allowlist([dict(r) for r in await cur.fetchall()])
@@ -191,12 +213,8 @@ async def _ingest_batch(db, source, batch, now, analyst_confidence, allow, resul
     if not kept:
         return
 
-    placeholders = ",".join("?" * len(kept))
-    cur = await db.execute(
-        f"SELECT id, type, value, status, expires_at, malware, threat_type, campaign, tags FROM indicators WHERE value IN ({placeholders})",
-        [a.value for a in kept],
-    )
-    existing = {(r["type"], r["value"]): dict(r) for r in await cur.fetchall()}
+    existing = await rows_by_type_value(db, "id, type, value, status, expires_at, malware, threat_type, campaign, tags",
+                                        [(a.type, a.value) for a in kept])
     sightings = {}
     if existing:
         ids = [r["id"] for r in existing.values()]
@@ -242,9 +260,8 @@ async def _ingest_batch(db, source, batch, now, analyst_confidence, allow, resul
         if any(a.tags for a, _ in new_rows):
             await db.executemany("UPDATE indicators SET tags = ? WHERE type = ? AND value = ? AND tags = ''",
                                  [(a.tags, a.type, a.value) for a, _ in new_rows if a.tags])
-        values = [a.value for a, _ in new_rows]
-        cur = await db.execute(f"SELECT id, type, value FROM indicators WHERE value IN ({','.join('?' * len(values))})", values)
-        ids = {(r["type"], r["value"]): r["id"] for r in await cur.fetchall()}
+        stored = await rows_by_type_value(db, "id, type, value", [(a.type, a.value) for a, _ in new_rows])
+        ids = {key: row["id"] for key, row in stored.items()}
         for a, _ in new_rows:
             indicator_id = ids.get((a.type, a.value))
             if indicator_id is None:

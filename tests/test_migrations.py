@@ -81,3 +81,19 @@ async def test_a_backup_from_a_newer_version_is_left_as_it_is(tmp_path):
         assert ran == []
     finally:
         await db.close()
+
+
+async def test_ioc_step_two_drops_the_value_index_and_lookups_use_type_and_value(tmp_path, monkeypatch):
+    from omenwatch.database.migrations.ioc import STEPS as IOC_STEPS
+    from omenwatch.ioc import db as ioc_db
+
+    path = tmp_path / "ioc.db"
+    monkeypatch.setattr(ioc_db, "IOC_DB_PATH", str(path))
+    await ioc_db.init_ioc_db()
+    with sqlite3.connect(path) as raw:
+        assert raw.execute("PRAGMA user_version").fetchone()[0] == len(IOC_STEPS)
+        indexes = {r[1] for r in raw.execute("PRAGMA index_list(indicators)")}
+        assert "idx_indicators_value" not in indexes
+        plan = " ".join(r[3] for r in raw.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM indicators WHERE type = ? AND value IN (?, ?)", ("sha256", "a", "b")))
+        assert "USING INDEX sqlite_autoindex_indicators" in plan and "SCAN" not in plan

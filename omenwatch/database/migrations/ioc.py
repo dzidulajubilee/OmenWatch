@@ -11,4 +11,11 @@ async def baseline(db) -> None:
     await db.executescript(IOC_INDEX_SCHEMA)
 
 
-STEPS = [baseline]
+async def drop_value_index(db) -> None:
+    """drop the index on value alone"""
+    # Lookups and imports find indicators through UNIQUE (type, value) since
+    # 2.0, so this second index only made every import slower.
+    await db.execute("DROP INDEX IF EXISTS idx_indicators_value")
+
+
+STEPS = [baseline, drop_value_index]

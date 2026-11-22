@@ -15,6 +15,7 @@ from omenwatch.ioc.normalize import (
 )
 from omenwatch.ioc.store import (
     load_allowlist,
+    rows_by_type_value,
 )
 
 
@@ -51,7 +52,7 @@ async def lookup_values(db, values: list[str], include_expired: bool = False, fo
                         hits: list | None = None) -> dict:
     """
     The one lookup both the tab and /api/v1 use. Every value is matched on
-    the UNIQUE (type, value) index, in one query for the whole request. A
+    the UNIQUE (type, value) index, in one query per type for the whole request. A
     miss is a normal result. `for_people` adds what an analyst wants and a
     SIEM doesn't: the row id, and why a stored value doesn't match. The id
     of every match is appended to `hits`, for the SIEM hit counts.
@@ -61,13 +62,7 @@ async def lookup_values(db, values: list[str], include_expired: bool = False, fo
         raw = str(raw)
         options = candidates(raw)
         wanted.append((raw, options))
-    lookups = sorted({v for _, options in wanted for _, v in options})
-    found = {}
-    for start in range(0, len(lookups), 900):
-        chunk = lookups[start:start + 900]
-        cur = await db.execute(f"SELECT * FROM indicators WHERE value IN ({','.join('?' * len(chunk))})", chunk)
-        for r in await cur.fetchall():
-            found[(r["type"], r["value"])] = dict(r)
+    found = await rows_by_type_value(db, "*", {option for _, options in wanted for option in options})
     matched_ids = [r["id"] for r in found.values() if r["status"] == "active" or (include_expired and r["status"] == "expired")]
     sources: dict[int, list] = {}
     for start in range(0, len(matched_ids), 900):
