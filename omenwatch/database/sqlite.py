@@ -5,7 +5,6 @@ import uuid
 import aiosqlite
 
 from omenwatch.core import config
-from omenwatch.database.models import INDEX_SCHEMA, MIGRATIONS, TABLE_SCHEMA
 
 # From omenwatch.core.config; module names so tests and the CLI can point them elsewhere.
 DB_PATH = config.DB_PATH
@@ -41,60 +40,19 @@ async def _configure(db) -> None:
     await db.execute("PRAGMA busy_timeout = 5000")
 
 
-async def _existing_columns(db, table: str) -> set[str]:
-    cur = await db.execute(f"PRAGMA table_info({table})")
-    return {row["name"] for row in await cur.fetchall()}
+async def _run_migrations(db) -> None:
+    """Brings omenwatch.db up to the current schema (database/migrations)."""
+    from omenwatch.database.migrations import migrate
+    from omenwatch.database.migrations.main import STEPS
 
-
-async def _run_migrations(db):
-    """
-    Brings an existing database up to date with columns added after its
-    original creation. Safe to run on every startup — each column is only
-    added if it's actually missing, so this is a no-op on an up-to-date
-    database and on a freshly-created one (SCHEMA already has everything).
-    """
-    tables_checked: dict[str, set[str]] = {}
-    for table, column, definition in MIGRATIONS:
-        if table not in tables_checked:
-            tables_checked[table] = await _existing_columns(db, table)
-        if column not in tables_checked[table]:
-            await db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-            tables_checked[table].add(column)
-    await db.commit()
-    await _backfill_priority(db)
-
-
-async def _backfill_priority(db) -> None:
-    """
-    0.8.0 moved the keyword rating from items.severity to
-    items.content_severity and made severity the priority. Items stored
-    earlier get their old rating copied across once, then their priority
-    worked out (a restored old backup goes through the same step).
-    """
-    from omenwatch.news.priority import recompute_priorities
-
-    cur = await db.execute("SELECT COUNT(*) FROM items WHERE content_severity = '' OR content_severity IS NULL")
-    if (await cur.fetchone())[0]:
-        await db.execute(
-            """UPDATE items SET content_severity = CASE WHEN severity IN ('low', 'medium', 'high') THEN severity ELSE 'high' END
-               WHERE content_severity = '' OR content_severity IS NULL"""
-        )
-        await recompute_priorities(db)
-        await db.commit()
+    await migrate(db, STEPS, "omenwatch.db")
 
 
 async def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     db = await get_db()
     try:
-        await db.executescript(TABLE_SCHEMA)
-        await db.commit()
         await _run_migrations(db)
-        # Indexes are created AFTER migrations, deliberately — see the comment
-        # on INDEX_SCHEMA in models.py for why running this earlier can fail
-        # against a genuinely old database.
-        await db.executescript(INDEX_SCHEMA)
-        await db.commit()
 
         # Only seed from config/feeds.json on a genuinely empty database, and only
         # if the file actually has entries. An empty/missing file means: start

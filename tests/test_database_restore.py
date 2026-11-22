@@ -173,7 +173,7 @@ async def test_restore_rejects_upload_when_insufficient_disk_space(monkeypatch):
 async def test_restore_of_an_old_schema_backup_is_migrated_forward_to_current_schema(tmp_path):
     """
     Real reported issue: a backup taken on an older OmenWatch version can
-    predate a column added by a later migration (see MIGRATIONS in
+    predate a column added by a later migration (see COLUMNS_ADDED_BEFORE_2_0 in
     omenwatch/database/models.py). validate_sqlite_backup() only requires
     the core tables to exist, not every column — restoring such a backup
     verbatim used to leave the *running* process serving a database
@@ -189,10 +189,10 @@ async def test_restore_of_an_old_schema_backup_is_migrated_forward_to_current_sc
     # core tables and every BASELINE column (so validation passes, and so
     # this doesn't corrupt the shared test DB_PATH for tests running after
     # this one), but is missing columns that were only ever added later via
-    # MIGRATIONS — exactly what a backup taken before those migrations
+    # COLUMNS_ADDED_BEFORE_2_0 — exactly what a backup taken before those migrations
     # shipped would look like. Deliberately does NOT touch columns like
     # `link`/`summary`/`published` that have existed since the very
-    # original schema and are never touched by MIGRATIONS at all.
+    # original schema and are never touched by COLUMNS_ADDED_BEFORE_2_0 at all.
     old_schema = """
     CREATE TABLE sources (
         id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL UNIQUE,

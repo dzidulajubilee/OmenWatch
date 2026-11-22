@@ -112,4 +112,4 @@ CREATE INDEX IF NOT EXISTS idx_indicator_hits_day ON indicator_hits(day);
 
 # Same pattern as database/models.py's MIGRATIONS: (table, column,
 # definition) for columns added after ioc.db first shipped.
-IOC_MIGRATIONS: list[tuple[str, str, str]] = []
+IOC_COLUMNS_ADDED_BEFORE_2_0: list[tuple[str, str, str]] = []  # frozen; see database/migrations/ioc.py

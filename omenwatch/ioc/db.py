@@ -19,8 +19,7 @@ import os
 import aiosqlite
 
 from omenwatch.core import config
-from omenwatch.database.sqlite import _configure, _existing_columns
-from omenwatch.ioc.models import IOC_INDEX_SCHEMA, IOC_MIGRATIONS, IOC_TABLE_SCHEMA
+from omenwatch.database.sqlite import _configure
 
 IOC_DB_PATH = config.IOC_DB_PATH
 
@@ -57,17 +56,9 @@ async def init_ioc_db() -> None:
     os.makedirs(os.path.dirname(IOC_DB_PATH), exist_ok=True)
     db = await get_ioc_db()
     try:
-        await db.executescript(IOC_TABLE_SCHEMA)
-        await db.commit()
-        checked: dict[str, set[str]] = {}
-        for table, column, definition in IOC_MIGRATIONS:
-            if table not in checked:
-                checked[table] = await _existing_columns(db, table)
-            if column not in checked[table]:
-                await db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-                checked[table].add(column)
-        await db.commit()
-        await db.executescript(IOC_INDEX_SCHEMA)
-        await db.commit()
+        from omenwatch.database.migrations import migrate
+        from omenwatch.database.migrations.ioc import STEPS
+
+        await migrate(db, STEPS, "ioc.db")
     finally:
         await db.close()

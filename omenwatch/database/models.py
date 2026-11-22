@@ -119,14 +119,11 @@ CREATE INDEX IF NOT EXISTS idx_items_severity ON items(severity);
 # fresh in the right order regardless of statement grouping).
 SCHEMA = TABLE_SCHEMA + INDEX_SCHEMA
 
-# Columns added after the original CREATE TABLE statements above.
-# `CREATE TABLE IF NOT EXISTS` is a no-op against an already-existing
-# table, so a column added here needs an explicit ALTER TABLE against any
-# database that predates it — that's what this list drives (see
-# omenwatch/database/sqlite.py: _run_migrations). Each entry is
-# (table, column, column_definition); adding a new column later should
-# come with a new entry here, not just a change to SCHEMA above.
-MIGRATIONS: list[tuple[str, str, str]] = [
+# Columns added after the original CREATE TABLE statements above, up to 2.0.
+# CREATE TABLE IF NOT EXISTS doesn't change an existing table, so the
+# baseline migration adds whichever of these an older database is missing.
+# Frozen: a new column goes in a new step in database/migrations/main.py.
+COLUMNS_ADDED_BEFORE_2_0: list[tuple[str, str, str]] = [
     ("sources", "icon_url", "TEXT"),
     ("sources", "connector_type", "TEXT DEFAULT 'rss'"),
     ("items", "severity", "TEXT DEFAULT 'low'"),

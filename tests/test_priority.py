@@ -93,6 +93,7 @@ async def test_priority_follows_our_stack_and_the_catalog():
 async def test_items_stored_before_0_8_get_their_priority_on_upgrade():
     db = await get_db()
     await db.execute("UPDATE items SET content_severity = '', severity = 'high', watch_hits = 'FortiGate' WHERE id = 'a'")
+    await db.execute("PRAGMA user_version = 0")   # a database from before the numbered migrations
     await db.commit()
     await db.close()
     await init_db()
