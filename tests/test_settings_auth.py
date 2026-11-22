@@ -200,6 +200,7 @@ def test_expired_session_is_rejected():
     has already passed must be treated exactly like an invalid one.
     """
     import time
+
     from omenwatch.auth import settings_auth
 
     setup = client.post("/api/settings/auth/setup", json={"password": "correct-horse-battery"}).json()

@@ -1,7 +1,38 @@
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import pytest
 
-from omenwatch.ingestion.connectors.rss import RSSConnector
 from omenwatch.database.sqlite import get_db
+from omenwatch.ingestion.connectors.rss import RSSConnector
+
+
+class _Article(BaseHTTPRequestHandler):
+    html = ""
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write(self.html.encode())
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def article_site():
+    """A publisher on 127.0.0.1, which is also where the test feed lives (see local_source)."""
+    server = HTTPServer(("127.0.0.1", 0), _Article)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}"
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.fixture
+def local_source(sample_source, article_site):
+    return {**sample_source, "url": f"{article_site}/feed.xml"}
 
 
 @pytest.fixture
@@ -80,20 +111,19 @@ async def test_deep_extraction_respects_explicit_off_setting(sample_source):
     await db.close()
 
 
-async def test_deep_extraction_surfaces_iocs_missing_from_summary_alone(sample_source, tmp_path):
+async def test_deep_extraction_surfaces_iocs_missing_from_summary_alone(local_source, article_site):
     """
     The core value proposition: a CVE mentioned only in the full article
     body (not in the short RSS summary) should still be detected when
     deep extraction is enabled — and should NOT be detected when it's off.
     """
-    article_html = (
+    _Article.html = (
         "<html><body><p>Full incident writeup.</p>"
         "<p>Indicators: CVE-2026-99999, hash d41d8cd98f00b204e9800998ecf8427e, "
         "contact abuse@malicious-example.com</p></body></html>"
     )
-    article_file = tmp_path / "article.html"
-    article_file.write_text(article_html)
-    article_url = f"file://{article_file}"
+    article_url = f"{article_site}/article.html"
+    sample_source = local_source
 
     db = await get_db()
 
@@ -131,7 +161,7 @@ async def test_deep_extraction_surfaces_iocs_missing_from_summary_alone(sample_s
     assert inserted2[0]["emails"] == []
 
 
-async def test_duplicate_items_are_not_refetched_for_deep_extraction(sample_source, tmp_path, monkeypatch):
+async def test_duplicate_items_are_not_refetched_for_deep_extraction(local_source, article_site, monkeypatch):
     """
     feedparser re-returns the same recent entries on every poll. Items
     already on disk must be filtered out BEFORE any full-page fetch is
@@ -143,15 +173,15 @@ async def test_duplicate_items_are_not_refetched_for_deep_extraction(sample_sour
     fetch_calls = []
     original = rss_module.fetch_article_text_sync
 
-    def counting_fetch(url):
+    def counting_fetch(url, trusted_host=""):
         fetch_calls.append(url)
-        return original(url)
+        return original(url, trusted_host)
 
     monkeypatch.setattr(rss_module, "fetch_article_text_sync", counting_fetch)
 
-    article_file = tmp_path / "dup_article.html"
-    article_file.write_text("<p>Some content, no indicators.</p>")
-    article_url = f"file://{article_file}"
+    _Article.html = "<p>Some content, no indicators.</p>"
+    article_url = f"{article_site}/dup_article.html"
+    sample_source = local_source
 
     db = await get_db()
     await db.execute(
@@ -171,3 +201,18 @@ async def test_duplicate_items_are_not_refetched_for_deep_extraction(sample_sour
     await db.close()
     assert len(second_pass) == 0  # already stored, correctly skipped
     assert len(fetch_calls) == 1  # NOT re-fetched for the duplicate
+
+
+async def test_a_feed_cannot_make_omenwatch_read_local_files(sample_source, tmp_path):
+    secret = tmp_path / "secret.html"
+    secret.write_text("<p>CVE-2026-11111 only in a local file</p>")
+    db = await get_db()
+    try:
+        await db.execute("INSERT INTO settings (key, value) VALUES ('deep_extraction', '1') "
+                         "ON CONFLICT(key) DO UPDATE SET value = '1'")
+        await db.commit()
+        items = [{"guid": "local-1", "title": "T", "link": f"file://{secret}", "summary": "s", "published": 0}]
+        inserted = await RSSConnector(sample_source).store(db, items)
+    finally:
+        await db.close()
+    assert inserted[0]["cves"] == []

@@ -1,6 +1,10 @@
 import pytest
 
-from omenwatch.ingestion.connectors.registry import CONNECTOR_REGISTRY, available_connector_types, get_connector
+from omenwatch.ingestion.connectors.registry import (
+    CONNECTOR_REGISTRY,
+    available_connector_types,
+    get_connector,
+)
 from omenwatch.ingestion.connectors.rss import RSSConnector
 
 

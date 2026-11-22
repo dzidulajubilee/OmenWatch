@@ -153,6 +153,7 @@ async def test_items_filtered_by_ioc_type_alone_matches_any_value_of_that_type()
 
 async def test_iocs_and_summary_respect_date_range():
     import datetime
+
     from omenwatch.database.sqlite import get_db
     day1 = datetime.datetime.strptime("2026-07-01", "%Y-%m-%d").timestamp()
     day2 = datetime.datetime.strptime("2026-07-15", "%Y-%m-%d").timestamp()
@@ -182,6 +183,7 @@ async def test_iocs_and_summary_respect_date_range():
 
 async def test_iocs_calendar_buckets_counts_by_day_and_respects_range():
     import datetime
+
     from omenwatch.database.sqlite import get_db
     day1 = datetime.datetime.strptime("2026-07-01", "%Y-%m-%d").timestamp()
     day1_later = day1 + 3600  # same day, an hour later
@@ -222,6 +224,7 @@ async def test_iocs_calendar_buckets_counts_by_day_and_respects_range():
 
 async def test_stats_top_vendors_and_articles_by_day_reflect_seeded_items():
     import time
+
     from omenwatch.database.sqlite import get_db
     db = await get_db()
     now = time.time()

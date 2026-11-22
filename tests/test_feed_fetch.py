@@ -1,5 +1,5 @@
 """
-Feed retrieval failure handling (omenwatch/feeds/rss.py) — against a real
+Feed retrieval failure handling (omenwatch/ingestion/fetcher.py) — against a real
 local HTTP server, not mocks, same approach as the webhook tests.
 
 Guards two shipped bugs:
@@ -18,9 +18,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from omenwatch.ingestion.connectors.rss import RSSConnector
 from omenwatch.database.sqlite import get_db
 from omenwatch.ingestion import fetcher as feed_rss
+from omenwatch.ingestion.connectors.rss import RSSConnector
 from omenwatch.ingestion.fetcher import FeedFetchError, fetch_raw
 from omenwatch.workers.news_worker import Scheduler
 

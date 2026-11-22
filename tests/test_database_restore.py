@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from omenwatch.app import app
 from omenwatch.database.models import SCHEMA
-from omenwatch.database.sqlite import DB_PATH, get_db
+from omenwatch.database.sqlite import get_db
 
 client = TestClient(app)
 
@@ -160,6 +160,7 @@ async def test_restore_leaves_no_dangling_temp_files_after_a_rejection(tmp_path)
 
 async def test_restore_rejects_upload_when_insufficient_disk_space(monkeypatch):
     import shutil as _shutil
+
     import omenwatch.database.restore as restore_module
 
     fake_usage = _shutil.disk_usage(".")._replace(free=1024)  # 1KB free — nowhere near enough
@@ -286,6 +287,7 @@ async def test_restore_endpoint_wiring_reapplies_schema_and_migrations():
     owning process while it exists, regardless of the process umask.
     """
     import stat
+
     from omenwatch.database.restore import save_upload_to_temp
 
     class FakeUploadFile:

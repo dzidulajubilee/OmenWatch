@@ -294,3 +294,43 @@ def test_severity_filter_accepts_comma_separated_multiple_values():
     assert resp.status_code == 200
     count_resp = client.get("/api/items/count?severity=high,medium")
     assert count_resp.status_code == 200
+
+
+async def test_keyword_filter_matches_every_word_across_all_item_fields():
+    """
+    The Live feed search used to match the whole phrase against the title
+    and summary only, so a vendor tag, an indicator or the source name
+    could never be searched, and "fortinet exploited" missed an item
+    tagged Fortinet whose title says exploited.
+    """
+    from omenwatch.database.sqlite import get_db
+
+    db = await get_db()
+    await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('sk1', 'Acme Advisories', 'http://k.com/f', 'news')")
+    await db.execute(
+        """INSERT INTO items (id, source_id, title, summary, guid, fetched_at, vendors, actors, ips, emails, kev_cves)
+           VALUES ('k1', 'sk1', 'Firewall flaw exploited in the wild', 'Patch now.', 'gk1', 1000,
+                   'Fortinet', 'LockBit', '192.0.2.10', 'ops@example.com', 'CVE-2099-0001')"""
+    )
+    await db.execute(
+        """INSERT INTO items (id, source_id, title, summary, guid, fetched_at)
+           VALUES ('k2', 'sk1', 'Unrelated news', 'Nothing here.', 'gk2', 1001)"""
+    )
+    await db.commit()
+    await db.close()
+
+    def ids(keyword):
+        resp = client.get("/api/items", params={"keyword": keyword})
+        count = client.get("/api/items/count", params={"keyword": keyword}).json()["total"]
+        assert count == len(resp.json())
+        return [i["id"] for i in resp.json()]
+
+    assert ids("fortinet exploited") == ["k1"]   # words in different fields, any order
+    assert ids("exploited Fortinet") == ["k1"]
+    assert ids("lockbit") == ["k1"]
+    assert ids("192.0.2.10") == ["k1"]
+    assert ids("ops@example") == ["k1"]
+    assert ids("cve-2099-0001") == ["k1"]
+    assert sorted(ids("acme")) == ["k1", "k2"]  # source name
+    assert ids("fortinet unrelated") == []        # every word must match
+    assert ids("100%") == []                      # LIKE wildcards are literal

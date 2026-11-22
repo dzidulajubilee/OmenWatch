@@ -269,3 +269,36 @@ def test_nginx_is_started_not_just_reloaded():
     assert ("enable", "nginx") in systemctl_calls, f"expected 'systemctl enable nginx', got: {systemctl_calls}"
     assert ("reload-or-restart", "nginx") in systemctl_calls, f"expected 'systemctl reload-or-restart nginx', got: {systemctl_calls}"
     assert ("reload", "nginx") not in systemctl_calls, "a bare 'reload' does nothing if nginx wasn't already running — this is the exact bug being regression-tested"
+
+
+def test_new_certificate_names_the_servers_hosts_and_addresses(monkeypatch):
+    monkeypatch.setattr(https_setup.socket, "getfqdn", lambda: "omenwatch.corp.example")
+    monkeypatch.setattr(https_setup.socket, "gethostname", lambda: "omenwatch")
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        result = MagicMock(returncode=0, stderr="")
+        result.stdout = "192.168.1.50 fe80::1 2001:db8::5\n" if cmd[:2] == ["hostname", "-I"] else ""
+        if cmd[0] == "openssl":
+            https_setup.CERT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            https_setup.CERT_PATH.write_text("CERT")
+            https_setup.KEY_PATH.write_text("KEY")
+        return result
+    monkeypatch.setattr(https_setup.subprocess, "run", fake_run)
+    https_setup.setup_https(assume_yes=True)
+    openssl = next(c for c in calls if c[0] == "openssl")
+    assert openssl[openssl.index("-subj") + 1] == "/CN=omenwatch.corp.example"
+    assert openssl[openssl.index("-addext") + 1] == (
+        "subjectAltName=DNS:omenwatch.corp.example,DNS:omenwatch,DNS:omenwatch.local,DNS:localhost,"
+        "IP:127.0.0.1,IP:192.168.1.50,IP:2001:db8::5")          # link-local fe80:: left out
+
+
+def test_renew_certificate_replaces_it_and_keeps_the_old_one():
+    https_setup.NGINX_SSL_DIR.mkdir(parents=True, exist_ok=True)
+    https_setup.CERT_PATH.write_text("OLD CERT")
+    https_setup.KEY_PATH.write_text("OLD KEY")
+    https_setup.setup_https(assume_yes=True, renew_certificate=True)
+    assert https_setup.CERT_PATH.read_text() == "FAKE CERT FOR TESTING"
+    kept = sorted(p.name for p in https_setup.NGINX_SSL_DIR.glob("*.replaced-*"))
+    assert [n.split(".replaced-")[0] for n in kept] == ["omenwatch.crt", "omenwatch.key"]

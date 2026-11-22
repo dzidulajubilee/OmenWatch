@@ -14,8 +14,8 @@ from fastapi.testclient import TestClient
 from omenwatch.alerts.matcher import matches_webhook
 from omenwatch.app import app
 from omenwatch.database.sqlite import get_db
-from omenwatch.workers.news_worker import Scheduler
 from omenwatch.news.watchlist import compile_watchlist, match_watchlist
+from omenwatch.workers.news_worker import Scheduler
 
 client = TestClient(app)
 HOUR = 3600

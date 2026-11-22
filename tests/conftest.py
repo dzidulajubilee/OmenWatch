@@ -41,8 +41,8 @@ async def fresh_db():
     # tests that don't care about this feature use fake http://example.com
     # style URLs as item links, which would otherwise mean every test run
     # attempts real network calls. Off by default here; tests that
-    # specifically exercise deep extraction turn it on explicitly and use
-    # safe file:// URLs (see tests/test_rss_connector.py).
+    # specifically exercise deep extraction turn it on explicitly and serve
+    # the article from 127.0.0.1 (see tests/test_rss_connector.py).
     await db.execute("INSERT INTO settings (key, value) VALUES ('deep_extraction', '0')")
     await db.commit()
     await db.close()
