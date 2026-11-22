@@ -75,6 +75,39 @@ def _shown(kind: str, value: str) -> str:
     return value.upper() if kind == "cve" else value
 
 
+class _Names:
+    """
+    Actor and vendor names as the articles spell them ("APT41", not the
+    stored "apt41"), read from one article that mentions each.
+    """
+
+    def __init__(self, db):
+        self.db = db
+        self.cache: dict[tuple[str, str], str] = {}
+
+    async def shown(self, kind: str, value: str, item_id: str | None = None) -> str:
+        if kind not in ("actor", "vendor"):
+            return _shown(kind, value)
+        key = (kind, value)
+        if key not in self.cache:
+            column = "actors" if kind == "actor" else "vendors"
+            if item_id is None:
+                cur = await self.db.execute(
+                    "SELECT item_id FROM item_entities WHERE kind = ? AND value = ? LIMIT 1", (kind, value))
+                row = await cur.fetchone()
+                item_id = row[0] if row else None
+            spelled = value
+            if item_id is not None:
+                cur = await self.db.execute(f"SELECT {column} FROM items WHERE id = ?", (item_id,))
+                row = await cur.fetchone()
+                for name in (row[0] if row else "").split(","):
+                    if name.strip().lower() == value:
+                        spelled = name.strip()
+                        break
+            self.cache[key] = spelled
+        return self.cache[key]
+
+
 def _item(r) -> dict:
     return {"id": r["id"], "title": r["title"], "link": r["link"], "source_id": r["source_id"],
             "source_name": r["source_name"], "published": r["published"], "severity": r["severity"]}
@@ -122,6 +155,7 @@ async def related_to_item(db, ioc_db, item_id: str, limit: int = 20) -> dict | N
     known = await _known(ioc_db, entities)
     kev = await _kev(db, [v for k, v in entities if k == "cve"])
 
+    names = _Names(db)
     linking = [(k, v) for k, v in entities if k in WEIGHT and counts[(k, v)] <= TOO_COMMON]
     related = []
     if linking:
@@ -138,12 +172,12 @@ async def related_to_item(db, ioc_db, item_id: str, limit: int = 20) -> dict | N
         for r in await cur.fetchall():
             shared = [s.split(":", 1) for s in r["shared"].split("\x1f")]
             related.append({**_item(r), "score": r["score"],
-                            "shared": [{"kind": k, "value": _shown(k, v)} for k, v in shared]})
+                            "shared": [{"kind": k, "value": await names.shown(k, v, r["id"])} for k, v in shared]})
 
     return {
         "item_id": item_id,
         "entities": [
-            {"kind": k, "value": _shown(k, v), "articles": counts[(k, v)],
+            {"kind": k, "value": await names.shown(k, v, item_id), "articles": counts[(k, v)],
              **({"indicator": known[v]} if v in known else {}),
              **({"kev": kev[v.upper()]} if k == "cve" and v.upper() in kev else {})}
             for k, v in entities
@@ -171,9 +205,10 @@ async def pivot(db, ioc_db, kind: str, value: str, limit: int = 50) -> dict:
            GROUP BY o.kind, o.value ORDER BY n DESC, o.value LIMIT 15""",
         (kind, value),
     )
-    together = [{"kind": r["kind"], "value": _shown(r["kind"], r["value"]), "articles": r["n"]}
+    names = _Names(db)
+    together = [{"kind": r["kind"], "value": await names.shown(r["kind"], r["value"]), "articles": r["n"]}
                 for r in await cur.fetchall()]
-    result = {"kind": kind, "value": _shown(kind, value), "articles": total, "items": items,
+    result = {"kind": kind, "value": await names.shown(kind, value), "articles": total, "items": items,
               "mentioned_with": together}
     known = await _known(ioc_db, [(kind, value)])
     if value in known:

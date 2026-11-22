@@ -98,13 +98,13 @@ function renderFeedCards(containerEl, items, opts) {
     <div class="item sev-${i.severity}" data-item-id="${i.id}">
       <div class="item-main">
         <div class="item-head">
-          <span class="src-tag" style="background:${i.source_color}22; color:${i.source_color}">
+          <span class="src-tag">
             ${sourceIconHtml(i.source_id, i.source_color)}
             ${escapeHtml(i.source_name)}
           </span>
           ${(i.vendors||[]).slice(0,2).map(v => `<span class="tag-chip" style="padding:2px 8px; margin:0;">${escapeHtml(v)}</span>`).join('')}
-          ${(i.actors||[]).slice(0,2).map(a => `<span class="tag-chip" style="padding:2px 8px; margin:0; color:var(--red); border-color:var(--red);">${escapeHtml(a)}</span>`).join('')}
-          ${(i.cves||[]).slice(0,2).map(c => `<span class="tag-chip" style="padding:2px 8px; margin:0; color:var(--signal); border-color:var(--signal);">${escapeHtml(c)}</span>`).join('')}
+          ${(i.actors||[]).slice(0,2).map(a => `<span class="tag-chip" style="padding:2px 8px; margin:0;">${escapeHtml(a)}</span>`).join('')}
+          ${(i.cves||[]).slice(0,2).map(c => `<span class="tag-chip" style="padding:2px 8px; margin:0;" class="mono">${escapeHtml(c)}</span>`).join('')}
           <span class="item-time" title="${escapeAttr(timeTitle(i))}">${escapeHtml(itemTimeLabel(i))}</span>
         </div>
         <div class="item-title"><a href="${safeHref(i.link)}" target="_blank" rel="noopener">${escapeHtml(i.title)}</a></div>

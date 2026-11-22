@@ -154,7 +154,7 @@ function renderIocdbTable() {
     const empty = !iocdb.summary.active && !filtered;
     table.innerHTML = empty
       ? `<div class="card-empty"><strong>No indicators yet</strong>Add an IOC feed (a plain text or CSV list published at a URL), or add indicators by hand. Nothing is collected until you do.<br>
-          <button type="button" class="btn btn-primary" data-act="feed">+ Add an IOC feed</button> <button type="button" class="btn" data-act="add">Add indicators by hand</button></div>`
+          <button type="button" class="btn btn-primary" data-act="feed">Add an IOC feed</button> <button type="button" class="btn" data-act="add">Add indicators by hand</button></div>`
       : '<div class="card-empty"><strong>Nothing matches these filters</strong>Try another type or status, or clear the filter.</div>';
     table.querySelector('[data-act="feed"]')?.addEventListener('click', () => { openSettingsTab('set-ioc-feeds'); });
     table.querySelector('[data-act="add"]')?.addEventListener('click', () => openIocAdd());
@@ -279,6 +279,7 @@ function renderIocDetail() {
       <dt>Last reported</dt><dd>${escapeHtml(fmtFull(i.last_seen))}</dd>
       <dt>Expires</dt><dd>${escapeHtml(expires)}</dd>
       <dt>Looked up by SIEMs</dt><dd>${escapeHtml(siemHitsText(i.siem_hits))}</dd>
+      <dt>In the news</dt><dd data-role="news-count"><span class="muted">Looking…</span></dd>
     </dl>
     ${i.note ? `<p class="detail-summary">${escapeHtml(i.note)}</p>` : ''}
     <section class="detail-section">
@@ -330,23 +331,48 @@ function renderIocDetail() {
 }
 
 // Where the news mentions it. Only a read of the dashboard's database.
+// Types articles are indexed by (2.0 correlation); domains and URLs are
+// found by searching titles and summaries instead.
+const CORRELATED_TYPES = new Set(['ipv4', 'md5', 'sha1', 'sha256', 'email']);
+const MENTION_FIELD = { cve: 'cves', ip: 'ips', hash: 'hashes', email: 'emails', actor: 'actors', vendor: 'vendors' };
+
 async function loadIocMentions(i) {
-  const res = await fetch(`/api/ioc/indicators/${i.id}/mentions`);
-  const el = document.getElementById('iocdbDetail').querySelector('[data-role="mentions"]');
+  const [res, corrRes] = await Promise.all([
+    fetch(`/api/ioc/indicators/${i.id}/mentions`),
+    CORRELATED_TYPES.has(i.type)
+      ? fetch(`/api/correlate?kind=${encodeURIComponent(i.type)}&value=${encodeURIComponent(i.value)}&limit=1`).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const root = document.getElementById('iocdbDetail');
+  const el = root.querySelector('[data-role="mentions"]');
+  const countEl = root.querySelector('[data-role="news-count"]');
   if (!el || !iocdb.shown || iocdb.shown.id !== i.id) return;
-  if (!res.ok) { el.hidden = true; return; }
+  if (!res.ok) { el.hidden = true; if (countEl) countEl.textContent = '—'; return; }
   const m = await res.json();
+  const corr = corrRes && corrRes.ok ? await corrRes.json() : null;
+  if (countEl) {
+    countEl.innerHTML = m.count
+      ? `<button type="button" class="corr-val" data-role="jump-news">Mentioned in ${plural(m.count, 'article')}</button>`
+      : '<span class="muted">Not mentioned in any stored article</span>';
+    countEl.querySelector('[data-role="jump-news"]')?.addEventListener('click', () => el.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }
   if (!m.count) {
     el.innerHTML = '<div class="detail-section-head"><h4>In the news</h4></div><p class="muted">No stored article mentions it.</p>';
     return;
   }
-  el.innerHTML = `<div class="detail-section-head"><h4>In the news</h4>
-      ${m.field ? `<button type="button" class="btn btn-sm" data-role="all-mentions">Show all</button>` : ''}</div>
-    <p class="muted">Mentioned in ${plural(m.count, 'article')}${m.field ? '' : ' (found in titles and summaries)'}.</p>
-    ${m.items.map(a => `<a class="related-link" href="${safeHref(a.link)}" target="_blank" rel="noopener">
-      <span class="related-title">${escapeHtml(a.title)}</span>
-      <span class="related-why">${escapeHtml(a.source_name)}, ${escapeHtml(timeAgo(a.fetched_at))}</span></a>`).join('')}`;
+  const together = (corr && corr.mentioned_with) || [];
+  el.innerHTML = `<div class="detail-section-head"><h4>In the news (${m.count})</h4>
+      ${m.field ? '<button type="button" class="btn btn-sm" data-role="all-mentions">Show all</button>' : ''}</div>
+    ${m.field ? '' : '<p class="muted">Found in titles and summaries.</p>'}
+    ${together.length ? `<div class="corr-with"><span class="muted">Mentioned alongside</span>
+      ${together.slice(0, 8).map(t => `<button type="button" class="mention-chip${t.kind === 'actor' ? '' : ' mono'}" data-kind="${escapeAttr(t.kind)}" data-value="${escapeAttr(t.value)}" title="${escapeAttr(`In ${plural(t.articles, 'article')} with it`)}">${escapeHtml(t.value.length > 24 ? t.value.slice(0, 22) + '…' : t.value)}<span class="count">${t.articles}</span></button>`).join('')}</div>` : ''}
+    ${m.items.map(a => `<a class="corr-rel" href="${safeHref(a.link)}" target="_blank" rel="noopener">
+      <span class="corr-rel-title">${escapeHtml(a.title)}</span>
+      <span class="corr-rel-meta"><span>${escapeHtml(a.source_name)}, ${escapeHtml(timeAgo(a.fetched_at))}</span></span></a>`).join('')}`;
   el.querySelector('[data-role="all-mentions"]')?.addEventListener('click', () => openMention(m.field, i.value));
+  el.querySelectorAll('.corr-with [data-kind]').forEach(btn => {
+    btn.onclick = () => openMention(MENTION_FIELD[btn.dataset.kind], btn.dataset.value);
+  });
 }
 
 async function saveIocEdit(i) {

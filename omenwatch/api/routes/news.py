@@ -2,6 +2,7 @@
 The news side: items, tags, the indicators found in articles, stats, overview
 and analytics.
 """
+import bisect
 import time
 
 from fastapi import HTTPException
@@ -624,7 +625,32 @@ async def get_overview(hours: int = 24, since: float | None = None):
         for offset in range(6, -1, -1):
             day = time.strftime("%Y-%m-%d", time.localtime(today_start - offset * 86400 + 43200))
             counts = buckets.get(day, {})
-            by_day.append({"date": day, **{s: counts.get(s, 0) for s in ("high", "medium", "low")}})
+            by_day.append({"date": day, **{s: counts.get(s, 0) for s in ("critical", "high", "medium", "low")}})
+
+        # 2.0: the dashboard's main chart. Hourly for a day or two, otherwise
+        # one bar per local day, over the selected range; `new` counts what
+        # arrived after `since`, for the "last looked" line.
+        if hours <= 48:
+            step, end = 3600, (int(now // 3600) + 1) * 3600
+            starts = [end - (hours - k) * 3600 for k in range(hours)]
+        else:
+            step, days = 86400, hours // 24
+            starts = [today_start - (days - 1 - k) * 86400 for k in range(days)]
+            starts = [time.mktime(time.localtime(t)[:3] + (0, 0, 0, 0, 0, -1)) for t in starts]
+        first = starts[0]
+        cur = await db.execute(
+            f"""SELECT {_EFFECTIVE_TS} AS ts, severity, fetched_at > ? AS is_new
+                FROM items WHERE {_EFFECTIVE_TS} >= ?""",
+            (since, first),
+        )
+        timeline = [{"start": t, "critical": 0, "high": 0, "other": 0, "new": 0} for t in starts]
+        for r in await cur.fetchall():
+            k = bisect.bisect_right(starts, r["ts"]) - 1
+            if k < 0 or r["ts"] >= starts[k] + step + 3600:
+                continue
+            bucket = timeline[k]
+            bucket[r["severity"] if r["severity"] in ("critical", "high") else "other"] += 1
+            bucket["new"] += r["is_new"]
 
         cur = await db.execute(
             "SELECT id, name, category, enabled, last_status, last_fetched, last_success, failing_since FROM sources"
@@ -650,6 +676,7 @@ async def get_overview(hours: int = 24, since: float | None = None):
         "indicators_week": indicators_week,
         "attention": attention,
         "by_day": by_day,
+        "timeline": {"step": step, "buckets": timeline},
         "sources": {"total": len(health), **count, "list": health},
     }
 

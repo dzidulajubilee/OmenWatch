@@ -41,7 +41,7 @@ function updatePermissionHint() {
   }
   const state = Notification.permission;
   el.textContent = state;
-  el.style.color = state === 'granted' ? 'var(--signal)' : (state === 'denied' ? 'var(--red)' : 'var(--text-dim)');
+  el.style.color = state === 'granted' ? 'var(--green-text)' : (state === 'denied' ? 'var(--red-text)' : 'var(--text-dim)');
 }
 
 function insecureContextWarning() {

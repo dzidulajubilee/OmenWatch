@@ -31,20 +31,14 @@
 <body class="booting">
 <div class="signin" id="signin" hidden>
   <section class="signin-hero" aria-hidden="true">
-    <div class="signin-grid"></div>
-    <div class="radar">
-      <div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div>
-      <div class="radar-sweep"></div>
-      <span class="blip b1"></span><span class="blip b2"></span><span class="blip b3"></span><span class="blip b4"></span>
-      <svg class="radar-core" viewBox="0 0 32 32" fill="none" aria-hidden="true"><mask id="radar-mark-gap"><rect width="32" height="32" fill="#fff"/><path d="M-6 -0.6C-4 -2.2 -1.6 -1.6 0 0.6C1.6 -1.6 4 -2.2 6 -0.6C3.6 -0.9 1.6 0.4 0 2.6C-1.6 0.4 -3.6 -0.9 -6 -0.6Z" transform="translate(23 9) rotate(-18) scale(1.08)" fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/></mask><circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="2.5" mask="url(#radar-mark-gap)"/><path d="M-6 -0.6C-4 -2.2 -1.6 -1.6 0 0.6C1.6 -1.6 4 -2.2 6 -0.6C3.6 -0.9 1.6 0.4 0 2.6C-1.6 0.4 -3.6 -0.9 -6 -0.6Z" transform="translate(23 9) rotate(-18) scale(1.08)" fill="currentColor"/></svg>
-    </div>
+    <div class="signin-horizon"></div>
+    <svg class="signin-omen" viewBox="0 0 32 32" fill="none" aria-hidden="true"><mask id="omen-mark-gap"><rect width="32" height="32" fill="#fff"/><path d="M-6 -0.6C-4 -2.2 -1.6 -1.6 0 0.6C1.6 -1.6 4 -2.2 6 -0.6C3.6 -0.9 1.6 0.4 0 2.6C-1.6 0.4 -3.6 -0.9 -6 -0.6Z" transform="translate(23 9) rotate(-18) scale(1.08)" fill="#000" stroke="#000" stroke-width="3.2" stroke-linejoin="round"/></mask><circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="1.6" mask="url(#omen-mark-gap)"/><path d="M-6 -0.6C-4 -2.2 -1.6 -1.6 0 0.6C1.6 -1.6 4 -2.2 6 -0.6C3.6 -0.9 1.6 0.4 0 2.6C-1.6 0.4 -3.6 -0.9 -6 -0.6Z" transform="translate(23 9) rotate(-18) scale(1.08)" fill="currentColor"/></svg>
     <div class="hero-copy">
-      <p class="hero-kicker">Self-hosted threat intelligence</p>
-      <h2 class="hero-title">Know what's happening.<br>Know what affects you.</h2>
+      <h2 class="hero-title">Threat news, indicators and exploited CVEs, checked against what you run</h2>
       <ul class="hero-points">
-        <li><span class="hp-dot live"></span>Live feeds from the sources you choose</li>
-        <li><span class="hp-dot exploited"></span>Exploited vulnerabilities from CISA, every day</li>
-        <li><span class="hp-dot ours"></span>Matched against what you actually run</li>
+        <li>The security feeds you choose, polled around the clock</li>
+        <li>CISA's list of exploited vulnerabilities, every day</li>
+        <li>An IOC database your SIEM can query</li>
       </ul>
     </div>
   </section>
@@ -112,7 +106,7 @@
   <form class="global-search" id="globalSearchForm" role="search">
     <label for="globalSearch" class="visually-hidden">Search intelligence</label>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-    <input id="globalSearch" type="search" autocomplete="off" placeholder="Search a CVE, IP address, hash, email or keyword">
+    <input id="globalSearch" type="search" autocomplete="off" placeholder="Search CVEs, IPs, hashes, keywords">
     <kbd>/</kbd>
   </form>
   <div class="topbar-right">
@@ -120,9 +114,9 @@
     <div class="conn-status" id="connStatus" data-state="connecting">
       <span class="conn-dot"></span><span class="conn-label" id="connLabel">Connecting</span><span class="conn-age" id="connAge"></span>
     </div>
-    <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" aria-label="Toggle light and dark theme">&#9789;</button>
+    <button class="theme-toggle" id="themeToggle" title="Switch theme" aria-label="Switch between light and dark theme"></button>
     <button class="theme-toggle signout-btn" id="signOutBtn" title="Sign out" aria-label="Sign out"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/></svg></button>
-    <button class="btn btn-primary" id="addSourceBtnHeader">+ Add source</button>
+    <button class="btn" id="addSourceBtnHeader">Add source</button>
   </div>
 </header>
 
@@ -134,7 +128,7 @@
       <button class="nav-item" data-view="affects-us"><span class="glyph icon-affects-us"></span><span class="nav-label">Affects us</span><span class="nav-count" id="navAffectsCount" hidden></span></button>
       <button class="nav-item" data-view="exploited"><span class="glyph icon-exploited"></span><span class="nav-label">Exploited</span><span class="nav-count nav-count-alert" id="navExploitedCount" hidden></span></button>
       <button class="nav-item" data-view="live-feed"><span class="glyph icon-live-feed"></span><span class="nav-label">Live feed</span><span class="nav-count" id="navNewCount" hidden></span></button>
-      <button class="nav-item" data-view="critical"><span class="glyph icon-critical"></span><span class="nav-label">Critical &amp; high</span></button>
+      <button class="nav-item" data-view="critical"><span class="glyph icon-critical"></span><span class="nav-label">Critical and high</span></button>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">Investigate</div>
@@ -177,32 +171,31 @@
       </div>
       <div class="stack-banner" id="dashStackBanner" role="status" hidden></div>
       <div class="kpi-strip" id="dashKpis" aria-label="Summary"></div>
+      <section class="card dash-chart" aria-labelledby="sightingsTitle">
+        <div class="sightings-head">
+          <div>
+            <h3 id="sightingsTitle">Sightings</h3>
+            <div class="sightings-total"><strong id="sightingsTotal">0</strong><span id="sightingsSub">articles published</span></div>
+          </div>
+          <div class="sightings-legend" aria-hidden="true"><span><i class="hot"></i>Critical and high</span><span><i class="rest"></i>Everything else</span></div>
+        </div>
+        <div class="sightings-wrap" id="dashSightings"></div>
+      </section>
       <div class="dash-grid">
-        <div class="dash-main">
         <section class="card" aria-labelledby="attentionTitle">
           <div class="card-head">
-            <div><h3 id="attentionTitle">Needs attention</h3><div class="card-sub" id="attentionSub">High severity, published in the last 24 hours</div></div>
-            <button type="button" class="link-btn" data-goto="critical">All high severity</button>
+            <div><h3 id="attentionTitle">Needs attention</h3><div class="card-sub" id="attentionSub">Critical and high priority, published in the last 24 hours</div></div>
+            <button type="button" class="link-btn" data-goto="critical">All critical and high</button>
           </div>
           <ul class="attention-list" id="dashAttention"></ul>
         </section>
-          <section class="card" aria-labelledby="daysTitle">
-            <div class="card-head">
-              <div><h3 id="daysTitle">Published per day</h3><div class="card-sub">Last 7 days, by severity</div></div>
-              <div class="legend" aria-hidden="true"><span><i class="bar-critical"></i>Critical</span><span><i class="bar-high"></i>High</span><span><i class="bar-medium"></i>Medium</span><span><i class="bar-low"></i>Low</span></div>
-            </div>
-            <div class="day-chart" id="dashDays"></div>
-          </section>
-        </div>
-        <div class="dash-side">
-          <section class="card" aria-labelledby="healthTitle">
-            <div class="card-head">
-              <div><h3 id="healthTitle">Source health</h3><div class="card-sub" id="healthSub"></div></div>
-              <button type="button" class="link-btn" data-goto="sources">Manage sources</button>
-            </div>
-            <ul class="health-list" id="dashHealth"></ul>
-          </section>
-        </div>
+        <section class="card" aria-labelledby="healthTitle">
+          <div class="card-head">
+            <div><h3 id="healthTitle">Source health</h3><div class="card-sub" id="healthSub"></div></div>
+            <button type="button" class="link-btn" data-goto="sources">Manage sources</button>
+          </div>
+          <ul class="health-list" id="dashHealth"></ul>
+        </section>
       </div>
     </section>
 
@@ -518,7 +511,7 @@
         <div><h2>IOC database</h2><div class="desc">Indicators from IOC feeds and your team, with sources, confidence and expiry. SIEMs query the same data through the lookup API.</div></div>
         <div class="view-actions">
           <button type="button" class="btn" id="iocdbFeedsBtn">IOC feeds</button>
-          <button type="button" class="btn btn-primary" id="iocdbAddBtn">+ Add indicators</button>
+          <button type="button" class="btn btn-primary" id="iocdbAddBtn">Add indicators</button>
         </div>
       </div>
       <div class="iocdb-error" id="iocdbError" role="alert" hidden></div>
@@ -617,8 +610,8 @@
           <button class="btn" id="exportSourcesBtn">Export</button>
           <button class="btn" id="importSourcesBtn">Import</button>
           <input type="file" id="importSourcesFile" accept="application/json" style="display:none;">
-          <button class="btn" id="lockSourcesBtn" title="Lock Settings and Sources again">&#128274; Lock</button>
-          <button class="btn btn-primary" id="addSourceBtnSources">+ Add source</button>
+          <button class="btn" id="lockSourcesBtn" title="Lock Settings and Sources again">Lock</button>
+          <button class="btn btn-primary" id="addSourceBtnSources">Add source</button>
         </div>
       </div>
       <div class="kpi-strip kpi-strip-4" id="sourcesSummary" aria-label="Source health summary"></div>
@@ -682,7 +675,7 @@
     <section class="view" id="view-settings">
       <div class="view-head">
         <div><h2>Settings</h2><div class="desc">Changes are saved as soon as you make them.</div></div>
-        <div class="view-actions"><button class="btn" id="lockSettingsBtn" title="Lock Settings and Sources again">&#128274; Lock</button></div>
+        <div class="view-actions"><button class="btn" id="lockSettingsBtn" title="Lock Settings and Sources again">Lock</button></div>
       </div>
       <div class="settings-layout">
         <nav class="settings-nav" aria-label="Settings sections">
@@ -773,7 +766,7 @@
                 <span class="set-label">Feeds</span>
                 <p class="set-hint">Each feed is downloaded on its own timer, separately from your RSS sources. OmenWatch asks the server whether the list changed and skips it if not.</p>
               </div>
-              <div class="set-control"><button type="button" class="btn btn-primary" id="iocFeedAddBtn">+ Add IOC feed</button></div>
+              <div class="set-control"><button type="button" class="btn btn-primary" id="iocFeedAddBtn">Add IOC feed</button></div>
             </div>
             <div class="src-table iocfeed-table" id="iocFeedTable" role="table" aria-label="IOC feeds"></div>
             <div class="set-row iocfeed-keep">
@@ -845,7 +838,7 @@
                 <span class="set-label">Webhooks</span>
                 <p class="set-hint">Send a JSON POST to any URL (a chat channel, a ticketing system, your own script) when a new item matches a keyword, a source and/or a minimum severity. Works without a browser open.</p>
               </div>
-              <div class="set-control"><button class="btn btn-primary" id="addWebhookBtn">+ Add webhook</button></div>
+              <div class="set-control"><button class="btn btn-primary" id="addWebhookBtn">Add webhook</button></div>
             </div>
             <div class="table-wrap">
               <table class="sources-table webhooks-table">
@@ -1064,7 +1057,7 @@
       <div class="modal-actions"><button class="btn btn-primary" id="authSetupSubmit">Set password</button></div>
     </div>
     <div id="authStateLogin" style="display:none;">
-      <h3>&#128274; Settings locked</h3>
+      <h3>Settings locked</h3>
       <div class="field"><label>Password</label><input type="password" id="authLoginPassword"></div>
       <div class="settings-hint" id="authLoginError" style="color:var(--red); min-height:16px;"></div>
       <div class="modal-actions">

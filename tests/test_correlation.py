@@ -93,7 +93,7 @@ async def test_related_articles_rank_shared_indicators_above_shared_actors_and_i
     order = [r["id"] for r in out["related"]]
     assert order == ["same-ip", "same-cve-and-actor", "same-actor"]   # 3, 2+1 (older), 1; a vendor never relates
     assert [r["score"] for r in out["related"]] == [3, 3, 1]
-    assert sorted((s["kind"], s["value"]) for s in out["related"][1]["shared"]) == [("actor", "apt99"), ("cve", "CVE-2026-1111")]
+    assert sorted((s["kind"], s["value"]) for s in out["related"][1]["shared"]) == [("actor", "APT99"), ("cve", "CVE-2026-1111")]
     assert out["related"][0]["source_name"] == "Example News"
     assert client.get("/api/items/missing/related").status_code == 404
 
@@ -121,7 +121,7 @@ async def test_pivot_on_a_value_lists_its_articles_and_what_they_mention_alongsi
     out = client.get("/api/correlate", params={"kind": "cve", "value": "cve-2026-1111"}).json()
     assert out["value"] == "CVE-2026-1111" and out["articles"] == 2
     assert [i["id"] for i in out["items"]] == ["b", "a"]
-    assert out["mentioned_with"][0] == {"kind": "actor", "value": "apt99", "articles": 2}
+    assert out["mentioned_with"][0] == {"kind": "actor", "value": "APT99", "articles": 2}
     by_type = client.get("/api/correlate", params={"kind": "ipv4", "value": "18.8.8.81"}).json()   # an IOC tab type
     assert by_type["kind"] == "ip" and [i["id"] for i in by_type["items"]] == ["b"]
     assert client.get("/api/correlate", params={"kind": "domain", "value": "x"}).status_code == 400
