@@ -64,25 +64,32 @@ class NotPublicError(IocValueError):
 
 def refang(raw: str) -> str:
     value = (raw or "").strip().strip("\"'<>")
-    for pattern, replacement in _REFANG:
-        value = pattern.sub(replacement, value)
+    # Most values aren't defanged: skip the patterns unless one could match.
+    if "[" in value or "(" in value or "{" in value or value[:4].lower() == "hxxp" or value[:3].lower() == "fxp":
+        for pattern, replacement in _REFANG:
+            value = pattern.sub(replacement, value)
     return value
 
 
 def detect(raw: str) -> str | None:
     """The type a value looks like, or None. Never 'ja3' or 'x509' (see the module docstring)."""
-    value = refang(raw)
+    return _detect(refang(raw))
+
+
+def _detect(value: str) -> str | None:
+    """`detect` for a value that is refanged already."""
     lower = value.lower()
     if _SCHEME_RE.match(value):
         return "url"
     if "@" in value and _EMAIL_RE.fullmatch(lower):
         return "email"
-    if _IPV4_PORT_RE.fullmatch(value) or _is_ip(value, 4):
-        return "ipv4"
-    if _IPV6_PORT_RE.fullmatch(value) or _is_ip(value, 6):
-        return "ipv6"
-    if _HEX_RE.fullmatch(lower) and len(lower) in _HEX:
+    # Hex can't be an IP address, and is the most common lookup: test it first.
+    if len(lower) in _HEX and _HEX_RE.fullmatch(lower):
         return _HEX[len(lower)]
+    if "." in value and (_IPV4_PORT_RE.fullmatch(value) or _is_ip(value, 4)):
+        return "ipv4"
+    if ":" in value and (_IPV6_PORT_RE.fullmatch(value) or _is_ip(value, 6)):
+        return "ipv6"
     if _JA4_RE.fullmatch(lower):
         return "ja4"
     if "." in value and "/" not in value:
@@ -96,22 +103,21 @@ def detect(raw: str) -> str | None:
 
 def candidates(raw: str) -> list[tuple[str, str]]:
     """Every (type, value) a looked-up value could be stored as: a 32-character hex string may be an MD5 or a JA3."""
-    detected = detect(raw)
+    value = refang(raw)
+    if not value or len(value) > MAX_VALUE_LENGTH:
+        return []
+    detected = _detect(value)
     if not detected:
         return []
-    types = [detected]
-    if detected == "md5":
-        types.append("ja3")
-    elif detected in ("sha1", "sha256"):
-        types.append("x509")
-    out = []
-    for t in types:
-        try:
-            value, _ = normalize(t, raw)
-        except IocValueError:
-            continue
-        out.append((t, value))
-    return out
+    if detected in _HEX.values():
+        # Already checked as lowercase hex of the right length: the same
+        # value is also a possible JA3 (MD5) or certificate (SHA-1/256).
+        lower = value.lower()
+        return [(detected, lower), ("ja3" if detected == "md5" else "x509", lower)]
+    try:
+        return [(detected, _NORMALIZERS[detected](value)[0])]
+    except IocValueError:
+        return []
 
 
 def normalize(type_: str | None, raw: str) -> tuple[str, dict]:

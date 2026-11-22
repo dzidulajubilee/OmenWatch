@@ -30,7 +30,7 @@ import uuid
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
@@ -111,7 +111,7 @@ async def ioc_db():
 def iso(ts) -> str | None:
     if not ts:
         return None
-    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
 
 
 def parse_since(value: str | None) -> float | None:
@@ -952,7 +952,8 @@ async def v1_lookup(body: LookupIn):
     async with ioc_db() as db:
         result = await lookup_values(db, values, body.include_expired, hits=matched)
     hit_counter.record(matched, len(values))
-    return result
+    # Only plain JSON types: skip FastAPI's encoder, slow on a 1,000-value answer.
+    return JSONResponse(result)
 
 
 EXPORT_COLUMNS = ("type", "value", "status", "confidence", "threat_type", "malware", "campaign", "first_seen", "last_seen", "expires_at")
