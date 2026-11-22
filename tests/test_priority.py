@@ -1,6 +1,6 @@
 """
 0.8.0 priority: Critical / High / Medium / Low from the article's wording,
-CISA KEV (Exploited) and Our stack (Affects us) — see intelligence/priority.py.
+CISA KEV (Exploited) and Our stack (Affects us) — see news/priority.py.
 """
 import time
 
@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 from omenwatch.alerts.matcher import matches_webhook
 from omenwatch.app import app
 from omenwatch.database.sqlite import get_db, init_db
-from omenwatch.intelligence.priority import compute_priority, explain_priority
-from omenwatch.intelligence.scoring import score_severity_detail
+from omenwatch.news.priority import compute_priority, explain_priority
+from omenwatch.news.scoring import score_severity_detail
 
 client = TestClient(app)
 
@@ -78,7 +78,7 @@ async def test_priority_follows_our_stack_and_the_catalog():
     db = await get_db()
     await db.execute("INSERT INTO kev (cve) VALUES ('CVE-2099-7')")
     await db.commit()
-    from omenwatch.intelligence.kev import recompute_item_kev
+    from omenwatch.news.kev import recompute_item_kev
     await recompute_item_kev(db)
     await db.commit()
     await db.close()

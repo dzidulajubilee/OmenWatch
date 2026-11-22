@@ -1,6 +1,6 @@
 import pytest
 
-from omenwatch.intelligence.tagging import extract_tags
+from omenwatch.news.tagging import extract_tags
 
 
 def test_extracts_known_vendor():

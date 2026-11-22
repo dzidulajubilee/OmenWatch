@@ -1,7 +1,7 @@
 import pytest
 
 from omenwatch.database.sqlite import get_db
-from omenwatch.intelligence.reprocessor import reprocess_items
+from omenwatch.news.reprocessor import reprocess_items
 
 
 @pytest.fixture(autouse=True)
@@ -103,7 +103,7 @@ async def test_reprocess_batches_correctly_across_a_batch_boundary():
     more rows than one batch holds and checking both the returned count
     and that every single row actually got backfilled.
     """
-    from omenwatch.intelligence.reprocessor import BATCH_SIZE
+    from omenwatch.news.reprocessor import BATCH_SIZE
 
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('src-legacy', 'Legacy Source', 'http://x.com/feed', 'news')")

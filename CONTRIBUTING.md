@@ -91,10 +91,10 @@ run `make lint` and `make test` on every PR.
 RSS is the only connector in v1.0 by design — but the architecture is
 built for more. To add one:
 
-1. Implement `BaseConnector` (`omenwatch/connectors/base.py`) in a new
-   `omenwatch/connectors/<name>.py`: `fetch()`, `normalize()`, `store()`
+1. Implement `BaseConnector` (`omenwatch/ingestion/connectors/base.py`) in a new
+   `omenwatch/ingestion/connectors/<name>.py`: `fetch()`, `normalize()`, `store()`
    at minimum (`validate()` has a sane default, `update()` is provided).
-2. Register it in `omenwatch/connectors/registry.py`'s
+2. Register it in `omenwatch/ingestion/connectors/registry.py`'s
    `CONNECTOR_REGISTRY` dict.
 3. That's it — the scheduler, database, and API layer all work against
    `BaseConnector`, not against RSS specifically. `POST /api/sources`
@@ -103,7 +103,7 @@ built for more. To add one:
    `omenwatch/api/routes.py:add_source` if you're intentionally opening
    this up beyond v1.0's scope).
 
-See `omenwatch/connectors/rss.py` for a complete reference implementation,
+See `omenwatch/ingestion/connectors/rss.py` for a complete reference implementation,
 and `docs/ARCHITECTURE.md` for the reasoning behind the split between
 retrieval, parsing, and storage.
 

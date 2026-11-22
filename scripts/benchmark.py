@@ -237,7 +237,7 @@ async def load(client, sample, batch, clients, seconds, stop=None):
 
 async def db_only(sample, runs=3000):
     from omenwatch.ioc.db import get_ioc_db
-    from omenwatch.ioc.routes import lookup_values as lookup
+    from omenwatch.ioc.lookup import lookup_values as lookup
 
     rng = random.Random(7)
     db = await get_ioc_db()

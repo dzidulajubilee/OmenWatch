@@ -13,10 +13,10 @@ import asyncio
 import time
 
 from omenwatch.alerts.dispatcher import dispatch_webhooks_for_items
-from omenwatch.connectors.registry import get_connector
 from omenwatch.core.logging import get_logger
 from omenwatch.database.sqlite import get_db
-from omenwatch.intelligence.kev import kev_due, refresh_kev
+from omenwatch.ingestion.connectors.registry import get_connector
+from omenwatch.news.kev import kev_due, refresh_kev
 
 log = get_logger("scheduler")
 

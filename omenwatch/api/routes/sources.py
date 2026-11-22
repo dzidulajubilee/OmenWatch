@@ -12,16 +12,16 @@ from pydantic import BaseModel
 
 from omenwatch.api.dependencies import protected_router, router
 from omenwatch.api.routes.live import broadcast
-from omenwatch.connectors.registry import CONNECTOR_REGISTRY, available_connector_types
 from omenwatch.database.sqlite import get_db
-from omenwatch.feeds.rss import FETCH_HARD_LIMIT, FeedFetchError, fetch_raw
+from omenwatch.ingestion.connectors.registry import CONNECTOR_REGISTRY, available_connector_types
+from omenwatch.ingestion.fetcher import FETCH_HARD_LIMIT, FeedFetchError, fetch_raw
 from omenwatch.intelligence.enrichment import (
     derive_icon_url,
     fetch_and_cache_icon_sync,
     invalidate_icon_cache,
 )
-from omenwatch.intelligence.ioc_extraction import CVE_PATTERN
-from omenwatch.intelligence.reprocessor import reprocess_items
+from omenwatch.intelligence.extraction import CVE_PATTERN
+from omenwatch.news.reprocessor import reprocess_items
 
 
 class SourceIn(BaseModel):

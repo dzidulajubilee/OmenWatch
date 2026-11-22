@@ -71,7 +71,7 @@ async def _backfill_priority(db) -> None:
     earlier get their old rating copied across once, then their priority
     worked out (a restored old backup goes through the same step).
     """
-    from omenwatch.intelligence.priority import recompute_priorities
+    from omenwatch.news.priority import recompute_priorities
 
     cur = await db.execute("SELECT COUNT(*) FROM items WHERE content_severity = '' OR content_severity IS NULL")
     if (await cur.fetchone())[0]:

@@ -18,11 +18,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from omenwatch.connectors.rss import RSSConnector
+from omenwatch.ingestion.connectors.rss import RSSConnector
 from omenwatch.database.sqlite import get_db
-from omenwatch.feeds import rss as feed_rss
-from omenwatch.feeds.rss import FeedFetchError, fetch_raw
-from omenwatch.feeds.scheduler import Scheduler
+from omenwatch.ingestion import fetcher as feed_rss
+from omenwatch.ingestion.fetcher import FeedFetchError, fetch_raw
+from omenwatch.ingestion.scheduler import Scheduler
 
 RSS = b"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0"><channel><title>Test feed</title><link>http://example.test/</link>
@@ -192,7 +192,7 @@ def test_slow_drip_server_hits_overall_deadline(feed_server, short_limits):
 
 async def test_connector_hard_limit_backstops_a_stuck_fetch(monkeypatch):
     """Covers what fetch_raw can't bound itself, e.g. a hung DNS lookup."""
-    import omenwatch.connectors.rss as connector_module
+    import omenwatch.ingestion.connectors.rss as connector_module
 
     monkeypatch.setattr(connector_module, "fetch_raw", lambda url: time.sleep(3))
     monkeypatch.setattr(connector_module, "FETCH_HARD_LIMIT", 0.3)

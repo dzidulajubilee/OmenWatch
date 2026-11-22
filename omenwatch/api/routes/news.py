@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from omenwatch.api.dependencies import router
 from omenwatch.api.routes.sources import SOURCE_STATE_ORDER, source_health
 from omenwatch.database.sqlite import get_db
-from omenwatch.intelligence.priority import explain_priority
+from omenwatch.news.priority import explain_priority
 
 # Page sizes. SQLite reads a negative LIMIT as "no limit", so an unchecked
 # ?limit=-1 would load every stored item into memory at once. The IOC

@@ -11,7 +11,7 @@ teaser systematically under-detects IOCs.
 This is best-effort and silent on failure: paywalls, bot-blocking,
 timeouts, non-HTML responses, or any other failure just means falling
 back to title+summary only for that item — never blocks storing it, and
-never raises. See omenwatch/connectors/rss.py for how the result is used.
+never raises. See omenwatch/ingestion/connectors/rss.py for how the result is used.
 
 The links come from the feed, not from whoever set OmenWatch up, so they
 are not trusted: only http(s), and only public addresses unless the link

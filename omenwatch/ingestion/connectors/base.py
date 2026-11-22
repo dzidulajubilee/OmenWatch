@@ -1,12 +1,12 @@
 """
 Abstract interface every intelligence-source connector must implement.
 
-v1.0 ships exactly one connector: RSS/Atom (omenwatch/connectors/rss.py).
+v1.0 ships exactly one connector: RSS/Atom (omenwatch/ingestion/connectors/rss.py).
 The interface exists so a *future* source — a TAXII feed, a vendor API
 poller, a paid intel feed, whatever — can be added later by:
 
-    1. implementing BaseConnector in a new omenwatch/connectors/<name>.py
-    2. registering it in omenwatch/connectors/registry.py
+    1. implementing BaseConnector in a new omenwatch/ingestion/connectors/<name>.py
+    2. registering it in omenwatch/ingestion/connectors/registry.py
 
 No changes to the scheduler, the database layer, or the API layer are
 required to add a connector. This is the boundary the "Extensibility"

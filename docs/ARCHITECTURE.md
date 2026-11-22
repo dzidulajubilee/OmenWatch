@@ -60,17 +60,17 @@ OmenWatch/
 
 ## Data flow
 
-1. `omenwatch/feeds/scheduler.py` wakes every 20s, checks each enabled source's
+1. `omenwatch/ingestion/scheduler.py` wakes every 20s, checks each enabled source's
    `interval_seconds` against its `last_fetched` timestamp.
-2. Due sources get handed to `omenwatch/connectors/registry.get_connector()`,
+2. Due sources get handed to `omenwatch/ingestion/connectors/registry.get_connector()`,
    which looks up the class for that source's `connector_type` and calls
    its `update()` — the fetch → normalize → validate → store cycle defined
    by `BaseConnector`. The scheduler itself has no RSS-specific code.
-3. `RSSConnector.fetch()` calls `omenwatch/feeds/rss.py` (urllib fetch with
+3. `RSSConnector.fetch()` calls `omenwatch/ingestion/fetcher.py` (urllib fetch with
    timeouts, then `feedparser` as the parser, run in a thread pool since it's
    blocking — see "Feed fetching" below); `.normalize()` calls
-   `omenwatch/feeds/parser.py` to shape entries into the common item dict;
-   `.store()` scores severity (`omenwatch/intelligence/scoring.py`) and
+   `omenwatch/news/parser.py` to shape entries into the common item dict;
+   `.store()` scores severity (`omenwatch/news/scoring.py`) and
    writes to SQLite.
 4. Newly-inserted items are broadcast to all connected browsers over
    `/ws`. The frontend prepends them with a slide-in animation.
@@ -80,7 +80,7 @@ OmenWatch/
 
 ## Feed fetching: timeouts and honest status
 
-`omenwatch/feeds/rss.py` downloads the feed itself with urllib and only
+`omenwatch/ingestion/fetcher.py` downloads the feed itself with urllib and only
 then hands the bytes to feedparser as a parser. Handing the URL straight
 to `feedparser.parse()` (the original approach) caused two real problems:
 
@@ -199,11 +199,11 @@ shape (triangle high, diamond medium, ring low), never colour alone.
   or removing an Our stack entry re-matches every stored item
   (`watchlist.rematch_all`, rowid batches); a catalog download re-marks every
   item with a CVE (`kev.recompute_item_kev`).
-- **Matching** (`intelligence/watchlist.py`) uses the title and RSS summary
+- **Matching** (`news/watchlist.py`) uses the title and RSS summary
   only, never the deep-extraction page: that page isn't stored, so stored
   items couldn't be re-matched the same way, and sidebars would cause false
   matches. Whole words; short all-capital terms are case-sensitive.
-- **KEV download** (`intelligence/kev.py`) runs as a background task from the
+- **KEV download** (`news/kev.py`) runs as a background task from the
   scheduler: daily after a success, hourly after a failure, never when
   disabled. A failed download keeps the previous copy and records the reason
   for Settings. `kev_url` can point at an internal copy for offline servers.
@@ -224,7 +224,7 @@ shape (triangle high, diamond medium, ring low), never colour alone.
   doesn't count toward the Settings lockout; sign-in has its own per-address
   limit. `OMENWATCH_OPEN_DASHBOARD=1` disables sign-in (reverse-proxy SSO,
   and the test suite, where `tests/test_sign_in.py` turns it back on).
-- **Priority** (`intelligence/priority.py`). `items.severity` now holds the
+- **Priority** (`news/priority.py`). `items.severity` now holds the
   priority (critical/high/medium/low) so every existing filter, count,
   webhook and notification threshold uses it; the keyword rating and the
   phrase that decided it are in `content_severity` / `content_keyword`.
@@ -339,20 +339,20 @@ inside it. The news side (RSS sources, items, the Indicators tab,
 
 ## Extensibility: the connector contract
 
-`omenwatch/connectors/base.py` defines `BaseConnector`, an abstract class
+`omenwatch/ingestion/connectors/base.py` defines `BaseConnector`, an abstract class
 with five methods: `fetch()`, `normalize()`, `validate()`, `store()`, and
 `update()` (which chains the first four). `RSSConnector` is the only
 implementation shipped in v1.0.
 
 Retrieval, parsing/normalization, and storage are deliberately separate
 steps — not just separate function calls, but separate *files*
-(`omenwatch/feeds/rss.py` vs `omenwatch/feeds/parser.py` vs the `store()`
+(`omenwatch/ingestion/fetcher.py` vs `omenwatch/news/parser.py` vs the `store()`
 method) — so each can change independently. A future connector for a
 different kind of source (a TAXII feed, a vendor API, anything) is added
 by:
 
-1. Implementing `BaseConnector` in a new `omenwatch/connectors/<name>.py`.
-2. Adding one line to `CONNECTOR_REGISTRY` in `omenwatch/connectors/registry.py`.
+1. Implementing `BaseConnector` in a new `omenwatch/ingestion/connectors/<name>.py`.
+2. Adding one line to `CONNECTOR_REGISTRY` in `omenwatch/ingestion/connectors/registry.py`.
 
 No changes to the scheduler, the database schema (the `sources` table
 already has a `connector_type` column, defaulting to `'rss'`), or the API
@@ -390,7 +390,7 @@ package) without affecting normal installs.
 Nothing is ever deleted automatically by default. `settings.retention_days`
 (default `0` = forever) is the only thing that prunes old items, and it's
 opt-in from Settings — the scheduler checks it at most once an hour
-(`omenwatch/feeds/scheduler.py: _maybe_run_retention`) and just does
+(`omenwatch/ingestion/scheduler.py: _maybe_run_retention`) and just does
 nothing if it's `0`.
 
 Being direct about a real constraint here: RSS is not an archive format.
@@ -413,7 +413,7 @@ that dots any day with stored items; clicking a day sets `date_from` and
 
 `omenwatch/` is a real installable Python package now (PEP 621, via
 `pyproject.toml`) — `pip install -e .` gets you an editable install,
-`from omenwatch.intelligence.scoring import score_severity` works from
+`from omenwatch.news.scoring import score_severity` works from
 anywhere, and `omenwatch.__version__` reflects whatever's actually
 installed. Version lives in exactly one place: `pyproject.toml`'s
 `[project] version`. `build.sh` reads it from there automatically, so
@@ -421,12 +421,12 @@ there's nothing else to bump on a release.
 
 Each subpackage's `__init__.py` re-exports its public API (e.g.
 `from omenwatch.connectors import BaseConnector, RSSConnector` instead of
-reaching into `omenwatch.connectors.rss` directly) — except
+reaching into `omenwatch.ingestion.connectors.rss` directly) — except
 `omenwatch/feeds/__init__.py`, which deliberately does NOT re-export
 `Scheduler`: doing so would create a real circular import
 (`feeds → connectors → feeds.parser → feeds/__init__ again`), caught by
 the test suite the first time it was tried. Import `Scheduler` directly
-from `omenwatch.feeds.scheduler` instead — that one line of nuance is
+from `omenwatch.ingestion.scheduler` instead — that one line of nuance is
 called out in the module's own docstring so it isn't rediscovered the
 hard way twice.
 
@@ -444,7 +444,7 @@ loads before any test module it applies to.
 
 ## IOC extraction
 
-`omenwatch/intelligence/ioc_extraction.py` does the same kind of
+`omenwatch/intelligence/extraction.py` does the same kind of
 rule-based extraction as tagging.py, for a different purpose: CVEs, IPv4
 addresses, MD5/SHA1/SHA256 hashes, and email addresses, via regex against
 each item's title+summary at store time. A few deliberate details worth
@@ -492,7 +492,7 @@ a change to `SCHEMA`.
 
 RSS summaries are short teasers — real IOCs (C2 IPs, hashes, full CVE
 lists) usually live in the article body on the publisher's site, not in
-the feed's excerpt. `omenwatch/feeds/article_fetcher.py` fetches the full
+the feed's excerpt. `omenwatch/ingestion/article_fetcher.py` fetches the full
 page for each genuinely-new item and strips it to plain text (a small
 `HTMLParser` subclass, skipping `<script>`/`<style>`/`<nav>`/`<footer>`
 content — no HTML-parsing library dependency). That richer text feeds
@@ -600,7 +600,7 @@ items with genuinely empty `vendors`/`actors`/`cves`/etc., not because
 nothing was there to find, but because detection didn't exist yet when
 they were stored.
 
-`omenwatch/intelligence/reprocessor.py: reprocess_items()` re-runs
+`omenwatch/news/reprocessor.py: reprocess_items()` re-runs
 severity scoring, tagging, and IOC extraction against items already on
 disk — no RSS re-fetch, using the exact same extraction logic (and
 optionally the same deep-extraction full-article fetch) that new items
@@ -741,7 +741,7 @@ different pre-filtered `/api/items` query — one card renderer, many views.
 
 ## Tagging (vendors & threat actors)
 
-`omenwatch/intelligence/tagging.py` does rule-based keyword/pattern
+`omenwatch/news/tagging.py` does rule-based keyword/pattern
 matching against curated vendor and threat-actor name lists (plus a regex
 for APT/UNC/FIN/TA-style actor codenames). Names match as whole words,
 not substrings — substring matching (the original approach) tagged

@@ -13,7 +13,7 @@ from omenwatch.core.logging import get_logger
 from omenwatch.core.logging import setup as setup_logging
 from omenwatch.core.security import add_security_headers
 from omenwatch.database.sqlite import init_db
-from omenwatch.feeds.scheduler import Scheduler
+from omenwatch.ingestion.scheduler import Scheduler
 from omenwatch.ioc.db import init_ioc_db
 
 FRONTEND = config.APP_ROOT / "frontend"

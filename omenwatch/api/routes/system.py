@@ -89,7 +89,7 @@ async def get_settings():
             "retention_days": int(rows.get("retention_days", 0)),
             # Whether new items get their full article page fetched for
             # richer severity/tag/IOC extraction. Default on — see
-            # omenwatch/connectors/rss.py:_deep_extraction_enabled.
+            # omenwatch/ingestion/connectors/rss.py:_deep_extraction_enabled.
             "deep_extraction": rows.get("deep_extraction", "1") != "0",
         }
     finally:

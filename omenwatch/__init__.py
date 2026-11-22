@@ -4,7 +4,7 @@ OmenWatch — threat intelligence RSS feed aggregator.
 Deliberately does NOT import `omenwatch.app` here. Doing so would make
 every `import omenwatch.<anything>` eagerly construct the FastAPI app
 (mounting static files, registering routes) as a side effect, which is
-unwanted for lightweight uses like `from omenwatch.intelligence.scoring
+unwanted for lightweight uses like `from omenwatch.news.scoring
 import score_severity` in a script or test. Import `omenwatch.app` (or
 just run `uvicorn omenwatch.app:app`) explicitly when you actually want
 the app.

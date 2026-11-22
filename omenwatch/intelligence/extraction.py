@@ -1,6 +1,6 @@
 """
 Rule-based IOC (Indicator of Compromise) extraction — same philosophy as
-omenwatch/intelligence/tagging.py: fast regex matching, zero external
+omenwatch/news/tagging.py: fast regex matching, zero external
 dependencies, transparent about what it can and can't catch. No IOC
 validation service, no threat-intel API lookups — just pattern matching
 against article text at store time.

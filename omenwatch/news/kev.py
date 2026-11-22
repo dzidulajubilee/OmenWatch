@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.request
 
-from omenwatch.intelligence.priority import compute_priority, content_of
+from omenwatch.news.priority import compute_priority, content_of
 
 DEFAULT_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 KEV_TIMEOUT = 30            # seconds per network read

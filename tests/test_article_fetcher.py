@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from omenwatch.feeds.article_fetcher import fetch_article_text_sync, html_to_text
+from omenwatch.ingestion.article_fetcher import fetch_article_text_sync, html_to_text
 
 
 def test_html_to_text_strips_tags():

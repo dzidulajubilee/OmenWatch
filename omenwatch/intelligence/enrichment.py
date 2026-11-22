@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 
 from omenwatch.core import config
-from omenwatch.feeds.parser import domain_from_url
+from omenwatch.news.parser import domain_from_url
 
 FAVICON_SERVICE = "https://www.google.com/s2/favicons?sz=64&domain={domain}"
 ICON_CACHE_DIR = config.ICON_CACHE_DIR

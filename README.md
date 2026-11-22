@@ -120,7 +120,7 @@ fresh install shows exactly what you configure.
 ## How items are rated
 
 Every item gets a **priority**: Critical, High, Medium or Low. OmenWatch works
-it out itself (`omenwatch/intelligence/priority.py`); nothing is sent to an
+it out itself (`omenwatch/news/priority.py`); nothing is sent to an
 outside service. Three signals go in:
 
 - **Wording.** The title and summary, plus the full article page when deep
@@ -355,9 +355,9 @@ How it fits together, and why things are the way they are:
 ## Known limitations
 
 - **Severity** is a keyword heuristic for triage, not CVSS or EPSS. Keywords
-  live in `omenwatch/intelligence/scoring.py`.
+  live in `omenwatch/news/scoring.py`.
 - **Vendor and threat-actor tags** come from curated name lists
-  (`omenwatch/intelligence/tagging.py`), and indicators are pattern-matched.
+  (`omenwatch/news/tagging.py`), and indicators are pattern-matched.
   Both are fast and predictable, but they aren't NLP.
 - **Our stack** matches names in each item's title and summary only, not the
   full article page, so an article that mentions your product only deep in

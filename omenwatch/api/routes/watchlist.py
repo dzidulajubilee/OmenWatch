@@ -8,8 +8,8 @@ from pydantic import BaseModel
 
 from omenwatch.api.dependencies import protected_router, router
 from omenwatch.database.sqlite import get_db
-from omenwatch.intelligence.kev import kev_status, refresh_kev
-from omenwatch.intelligence.watchlist import entry_terms, rematch_all
+from omenwatch.news.kev import kev_status, refresh_kev
+from omenwatch.news.watchlist import entry_terms, rematch_all
 
 # ---------------------------------------------------------------- our stack
 

@@ -125,7 +125,7 @@ tests/                   the pytest suite
 A connector's `update()` runs four steps: **fetch → normalize → validate →
 store**. The RSS connector's steps:
 
-**Fetch** (`feeds/rss.py`). Only `http://` and `https://`. A read that gets
+**Fetch** (`ingestion/fetcher.py`). Only `http://` and `https://`. A read that gets
 no data for 15 s fails; the whole download may take at most 45 s; more than
 10 MB is refused; gzip and deflate are decoded. A backstop in the connector
 abandons any fetch still running after about a minute. Failures become
@@ -135,7 +135,7 @@ readable messages that the Sources page shows: `HTTP 404 Not Found`,
 lenient and never raises, so the fetcher checks the result itself: a
 document that isn't a feed is an error, not "0 new items".
 
-**Normalize** (`feeds/parser.py`). Each entry becomes a flat item: title,
+**Normalize** (`news/parser.py`). Each entry becomes a flat item: title,
 link, summary, published time (UTC, from the feed's parsed date) and a
 GUID: the feed's own ID, else the link, else a SHA-1 of title and link.
 
@@ -159,12 +159,12 @@ GUID: the feed's own ID, else the link, else a SHA-1 of title and link.
 The new items are returned to the scheduler, which broadcasts them and runs
 webhooks.
 
-**Reprocessing** (`intelligence/reprocessor.py`, Settings, Storage) re-runs
+**Reprocessing** (`news/reprocessor.py`, Settings, Storage) re-runs
 steps 2–3 on stored items in batches of 200, without re-reading the feeds.
 
 ## 4. The scheduler
 
-`feeds/scheduler.py` runs one loop inside the web process. Every 20 seconds
+`ingestion/scheduler.py` runs one loop inside the web process. Every 20 seconds
 it:
 
 1. checks each **enabled** source and polls those whose interval has elapsed

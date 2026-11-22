@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
 );
 
 CREATE TABLE IF NOT EXISTS kev (
-    cve TEXT PRIMARY KEY,         -- CISA Known Exploited Vulnerabilities catalog, see intelligence/kev.py
+    cve TEXT PRIMARY KEY,         -- CISA Known Exploited Vulnerabilities catalog, see news/kev.py
     vendor TEXT DEFAULT '',
     product TEXT DEFAULT '',
     name TEXT DEFAULT '',
@@ -153,7 +153,7 @@ MIGRATIONS: list[tuple[str, str, str]] = [
     ("webhooks", "only_affects_us", "INTEGER DEFAULT 0"),
     ("webhooks", "only_exploited", "INTEGER DEFAULT 0"),
     # 0.8.0 — items.severity now holds the priority; the keyword rating
-    # and the phrase that decided it are kept here (see intelligence/priority.py)
+    # and the phrase that decided it are kept here (see news/priority.py)
     ("items", "content_severity", "TEXT DEFAULT ''"),
     ("items", "content_keyword", "TEXT DEFAULT ''"),
 ]

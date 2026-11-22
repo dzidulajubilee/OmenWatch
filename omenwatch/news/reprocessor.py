@@ -16,13 +16,13 @@ without touching the source's RSS feed at all.
 """
 import asyncio
 
-from omenwatch.feeds.article_fetcher import fetch_article_text_sync
-from omenwatch.intelligence.ioc_extraction import extract_iocs
-from omenwatch.intelligence.kev import kev_hits, load_kev_set
-from omenwatch.intelligence.priority import compute_priority
-from omenwatch.intelligence.scoring import score_severity_detail
-from omenwatch.intelligence.tagging import extract_tags
-from omenwatch.intelligence.watchlist import load_watchlist, match_watchlist
+from omenwatch.ingestion.article_fetcher import fetch_article_text_sync
+from omenwatch.intelligence.extraction import extract_iocs
+from omenwatch.news.kev import kev_hits, load_kev_set
+from omenwatch.news.priority import compute_priority
+from omenwatch.news.scoring import score_severity_detail
+from omenwatch.news.tagging import extract_tags
+from omenwatch.news.watchlist import load_watchlist, match_watchlist
 
 MAX_CONCURRENT_FETCHES = 5
 BATCH_SIZE = 200  # bounds memory + in-flight asyncio tasks regardless of table size

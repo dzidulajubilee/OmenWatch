@@ -17,7 +17,7 @@ Matching rules, same spirit as tagging.py and scoring.py:
 """
 import re
 
-from omenwatch.intelligence.priority import compute_priority, content_of, recompute_priorities
+from omenwatch.news.priority import compute_priority, content_of, recompute_priorities
 
 _TAGS = re.compile(r"<[^>]+>")
 _BATCH = 1000
