@@ -14,6 +14,7 @@ The IOC database is its own SQLite file, next to omenwatch.db
 
 Same engine, driver and pragmas as omenwatch.db, so no new dependency.
 """
+import asyncio
 import os
 
 import aiosqlite
@@ -75,15 +76,20 @@ async def init_ioc_db() -> None:
 class ReadPool:
     """
     A few ioc.db connections kept open for API requests, instead of a new
-    connection (and thread) for every lookup. A connection goes back to the
-    pool only when the request ended cleanly with nothing uncommitted;
+    connection (and thread) for every lookup. At most `size` are open at
+    once; more requests wait their turn (a lookup holds one for about a
+    millisecond), which also caps their memory. A connection goes back to
+    the pool only when the request ended cleanly with nothing uncommitted;
     otherwise it is closed. If ioc.db has been replaced on disk, older
     connections are dropped rather than served.
     """
 
+    CACHE_KIB = 8 * 1024   # a lookup reads a few pages; imports use their own, bigger cache
+
     def __init__(self, size: int = 4):
         self.size = size
         self._idle: list[tuple] = []   # (connection, file identity when opened)
+        self._slots = None             # asyncio.Semaphore, made on first use (inside the event loop)
 
     @staticmethod
     def _identity():
@@ -94,22 +100,33 @@ class ReadPool:
             return None
 
     async def acquire(self):
-        current = self._identity()
-        while self._idle:
-            db, identity = self._idle.pop()
-            if identity == current:
-                return db
-            await db.close()
-        db = await get_ioc_db(daemon=True)
-        db._pool_identity = self._identity()
-        return db
+        if self._slots is None:
+            self._slots = asyncio.Semaphore(self.size)
+        await self._slots.acquire()
+        try:
+            current = self._identity()
+            while self._idle:
+                db, identity = self._idle.pop()
+                if identity == current:
+                    return db
+                await db.close()
+            db = await get_ioc_db(daemon=True)
+            await db.execute(f"PRAGMA cache_size = -{self.CACHE_KIB}")
+            db._pool_identity = self._identity()
+            return db
+        except BaseException:
+            self._slots.release()
+            raise
 
     async def release(self, db, clean: bool) -> None:
-        identity = getattr(db, "_pool_identity", None)
-        if clean and not db.in_transaction and len(self._idle) < self.size and identity == self._identity():
-            self._idle.append((db, identity))
-        else:
-            await db.close()
+        try:
+            identity = getattr(db, "_pool_identity", None)
+            if clean and not db.in_transaction and len(self._idle) < self.size and identity == self._identity():
+                self._idle.append((db, identity))
+            else:
+                await db.close()
+        finally:
+            self._slots.release()
 
     async def close(self) -> None:
         while self._idle:

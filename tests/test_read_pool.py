@@ -90,3 +90,20 @@ async def test_a_cached_siem_key_skips_the_database(monkeypatch):
         assert sign_in.cached(key, siem=False) is None                  # never valid as a viewer key
     finally:
         os.environ["OMENWATCH_OPEN_DASHBOARD"] = "1"
+
+
+async def test_no_more_than_size_connections_are_open_at_once():
+    import asyncio
+
+    pool = ReadPool(size=2)
+    a = await pool.acquire()
+    b = await pool.acquire()
+    third = asyncio.create_task(pool.acquire())
+    await asyncio.sleep(0.05)
+    assert not third.done()                       # waits for a free slot
+    await pool.release(a, clean=True)
+    c = await asyncio.wait_for(third, 1)
+    assert c is a                                 # and gets the connection just returned
+    await pool.release(b, clean=True)
+    await pool.release(c, clean=True)
+    await pool.close()
