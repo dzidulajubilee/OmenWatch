@@ -1,6 +1,6 @@
-# Pantomath administration guide
+# OmenWatch administration guide
 
-Installing, securing, running and upgrading Pantomath. For using it, see the
+Installing, securing, running and upgrading OmenWatch. For using it, see the
 [user guide](user-guide.md); for how it works inside, see
 [how-it-works.md](how-it-works.md).
 
@@ -33,7 +33,7 @@ Installing, securing, running and upgrading Pantomath. For using it, see the
 - Disk: the database grows with history; a few hundred MB covers a long
   time for a typical set of feeds. Restoring a backup needs free space for
   the upload plus a copy of the current database.
-- For HTTPS through `pantomath-admin setup-https`: Debian or Ubuntu (it
+- For HTTPS through `omenwatch-admin setup-https`: Debian or Ubuntu (it
   installs nginx with `apt-get`).
 
 ## 2. Installing
@@ -42,10 +42,10 @@ Installing, securing, running and upgrading Pantomath. For using it, see the
 
 ```bash
 sudo apt install python3-venv git
-git clone https://github.com/dzidulajubilee/Pantomath.git
-cd Pantomath
-./build.sh deb                      # -> dist/pantomath_<version>_amd64.deb
-sudo apt install ./dist/pantomath_*_amd64.deb
+git clone https://github.com/dzidulajubilee/OmenWatch.git
+cd OmenWatch
+./build.sh deb                      # -> dist/omenwatch_<version>_amd64.deb
+sudo apt install ./dist/omenwatch_*_amd64.deb
 ```
 
 Install with `apt install ./…`, not `dpkg -i`: only `apt` installs the
@@ -56,20 +56,20 @@ package's dependencies (such as `python3-venv`).
 
 **A ready-made package:** copy it to the server, compare `sha256sum` with the
 published checksum (a truncated copy fails halfway through unpacking), then
-`sudo apt install ./pantomath_<version>_amd64.deb`.
+`sudo apt install ./omenwatch_<version>_amd64.deb`.
 
 **What the installer does:**
 
-1. creates the `pantomath` system user (no login shell, no home directory);
-2. creates `/var/lib/pantomath` for the data, owned by that user;
-3. builds a private Python environment in `/opt/pantomath/venv` from the
+1. creates the `omenwatch` system user (no login shell, no home directory);
+2. creates `/var/lib/omenwatch` for the data, owned by that user;
+3. builds a private Python environment in `/opt/omenwatch/venv` from the
    bundled wheels (falling back to the internet only if the package was built
    without them);
-4. links `pantomath-admin` into `/usr/local/bin`;
-5. installs, enables and starts the `pantomath` systemd service;
+4. links `omenwatch-admin` into `/usr/local/bin`;
+5. installs, enables and starts the `omenwatch` systemd service;
 6. on a new install, creates the **setup code** and prints it (next section).
 
-Pantomath starts with **no sources**. To pre-load a starter list on new
+OmenWatch starts with **no sources**. To pre-load a starter list on new
 installs (for a fleet of servers, say), put them in `config/feeds.json`
 before building the package. It's only read when the database has no
 sources at all.
@@ -82,33 +82,33 @@ printed by the installer:
 
 ```
 ==================== First-time setup ====================
-  Open http://pantomath-host:7373 and enter this setup code on the
+  Open http://omenwatch-host:7373 and enter this setup code on the
   Welcome screen to create the Settings password:
 
       K7QM-4XPA-9HTE
 
-  Nobody can set Pantomath up without it. Show it again with:
-      sudo pantomath-admin setup-code
+  Nobody can set OmenWatch up without it. Show it again with:
+      sudo omenwatch-admin setup-code
 ==========================================================
 ```
 
 The code means someone else on the network can't claim a fresh install
 before you do. It's stored as a hash in the database, and in plain form only
-in `/var/lib/pantomath/setup-code` (readable only by the service user and
+in `/var/lib/omenwatch/setup-code` (readable only by the service user and
 root, never written to the logs). It's deleted as soon as the Settings
 password exists.
 
 **Recommended order:**
 
-1. `sudo pantomath-admin setup-https` (section 6), so the first password
+1. `sudo omenwatch-admin setup-https` (section 6), so the first password
    never crosses the network in plain HTTP.
-2. Open Pantomath in a browser. The **Welcome to Pantomath** page asks for:
+2. Open OmenWatch in a browser. The **Welcome to OmenWatch** page asks for:
    - the setup code (spaces, dashes and upper/lower case don't matter);
    - a new Settings password (at least 8 characters, typed twice).
 3. Save the **recovery code** it shows. It's shown once, and it resets the
    Settings password from the sign-in page if the password is ever lost.
 4. In Settings, Security, set a **team password** for everyone who only needs
-   to view Pantomath.
+   to view OmenWatch.
 5. In Settings, add **Our stack** (what you run) and check that **Exploited
    vulnerabilities** could download CISA's catalog.
 6. Add sources (the **+ Add source** button), testing each one.
@@ -149,10 +149,10 @@ minute).
 | Settings password reset (recovery code or `reset-settings-password`) | Everyone signed in with the Settings password |
 | Settings, Security: *Sign out* on a device | That device |
 | Settings, Security: *Sign out all other devices* | Every browser except yours (API keys stay) |
-| `sudo pantomath-admin sign-out-everyone` | Every browser (add `--api-keys` to revoke keys too) |
-| `sudo pantomath-admin reset-settings-password --clear` | Every browser (back to first-run setup) |
+| `sudo omenwatch-admin sign-out-everyone` | Every browser (add `--api-keys` to revoke keys too) |
+| `sudo omenwatch-admin reset-settings-password --clear` | Every browser (back to first-run setup) |
 
-A running Pantomath notices sign-outs made from the command line within
+A running OmenWatch notices sign-outs made from the command line within
 30 seconds. Settings pages already unlocked in a browser stay unlocked for
 up to an hour after a Settings password reset.
 
@@ -163,12 +163,12 @@ up to an hour after a Settings password reset.
   password?** on the sign-in page (or *Reset with recovery code* in the
   Settings unlock prompt). You get a new recovery code.
 - *Settings password and recovery code both lost:* on the server,
-  `sudo pantomath-admin reset-settings-password` (next section).
+  `sudo omenwatch-admin reset-settings-password` (next section).
 
 **Sign-in off:** installations already behind an authenticating reverse
-proxy (single sign-on) can set `PANTOMATH_OPEN_DASHBOARD=1` in the service
-environment (section 8). Pantomath's own sign-in is then skipped entirely,
-and anyone who reaches Pantomath through the proxy can view it. Settings
+proxy (single sign-on) can set `OMENWATCH_OPEN_DASHBOARD=1` in the service
+environment (section 8). OmenWatch's own sign-in is then skipped entirely,
+and anyone who reaches OmenWatch through the proxy can view it. Settings
 still need the Settings password, which is then created in Settings itself
 on first use; with sign-in off, the proxy is the gate, so no setup code is
 asked for. Only do this if the proxy really
@@ -177,18 +177,18 @@ authenticates everyone.
 ## 5. Admin commands
 
 Run on the server. Commands that touch the database, when run with `sudo`,
-continue as the owner of the database folder (the `pantomath` user), so they
+continue as the owner of the database folder (the `omenwatch` user), so they
 never leave root-owned database files that would stop the service.
 
 ```
-sudo pantomath-admin setup-code [--bare]
+sudo omenwatch-admin setup-code [--bare]
 ```
 
-Shows the one-time setup code while Pantomath hasn't been set up, or says it
+Shows the one-time setup code while OmenWatch hasn't been set up, or says it
 already has been. `--bare` prints just the code (or nothing), for scripts.
 
 ```
-sudo pantomath-admin reset-settings-password [--clear]
+sudo omenwatch-admin reset-settings-password [--clear]
 ```
 
 Asks for a new Settings password in the terminal (twice), sets it, signs out
@@ -200,7 +200,7 @@ and a new setup code is printed. Items, sources,
 webhooks, the team password and settings are never touched.
 
 ```
-sudo pantomath-admin sign-out-everyone [--api-keys]
+sudo omenwatch-admin sign-out-everyone [--api-keys]
 ```
 
 Ends every browser sign-in (and, with `--api-keys`, revokes every API key).
@@ -208,10 +208,10 @@ For when a device is lost or you suspect a password leaked. Change the
 passwords afterwards.
 
 ```
-sudo pantomath-admin setup-https [--port 7373] [--yes]
+sudo omenwatch-admin setup-https [--port 7373] [--yes]
 ```
 
-Puts nginx with HTTPS in front of Pantomath (next section).
+Puts nginx with HTTPS in front of OmenWatch (next section).
 
 ## 6. HTTPS
 
@@ -220,7 +220,7 @@ and browsers refuse desktop notifications. On anything but a trusted
 network, use HTTPS:
 
 ```bash
-sudo pantomath-admin setup-https
+sudo omenwatch-admin setup-https
 ```
 
 It:
@@ -231,22 +231,22 @@ It:
   they connect to (an existing certificate is kept, so anything that already
   trusts it keeps working; `--renew-certificate` replaces it and keeps the
   old one as `*.replaced-<date>`);
-- adds an nginx site that forwards to Pantomath;
-- turns off nginx's stock default site by moving it to `/etc/nginx/sites-available/default.disabled-by-pantomath` (not deleted; move it back to re-enable). It also repairs servers where an earlier version only renamed it inside `sites-enabled/`, which left it active;
+- adds an nginx site that forwards to OmenWatch;
+- turns off nginx's stock default site by moving it to `/etc/nginx/sites-available/default.disabled-by-omenwatch` (not deleted; move it back to re-enable). It also repairs servers where an earlier version only renamed it inside `sites-enabled/`, which left it active;
 - checks the configuration with `nginx -t` before reloading;
-- offers to restrict Pantomath to `127.0.0.1`, so nginx becomes the only way
+- offers to restrict OmenWatch to `127.0.0.1`, so nginx becomes the only way
   in (recommended).
 
 It asks before every change unless you pass `--yes`, and it's safe to run
-again. Certificates made before 1.3.0 carry only the name `pantomath.local`,
+again. Certificates made before 1.3.0 carry only the name `omenwatch.local`,
 which clients that check certificates (a SIEM calling the lookup API, `curl`
-without `-k`) can't match: run `sudo pantomath-admin setup-https
+without `-k`) can't match: run `sudo omenwatch-admin setup-https
 --renew-certificate` once, then give those clients
-`/etc/nginx/ssl/pantomath.crt` as their CA file. Browsers warn about a self-signed certificate until it's trusted;
+`/etc/nginx/ssl/omenwatch.crt` as their CA file. Browsers warn about a self-signed certificate until it's trusted;
 for a company-wide setup, replace it with a certificate from your internal
 CA in the nginx site configuration.
 
-Behind HTTPS, Pantomath marks its sign-in cookie *Secure* automatically
+Behind HTTPS, OmenWatch marks its sign-in cookie *Secure* automatically
 (nginx tells it the original request was HTTPS).
 
 ## 7. Network: ports and outbound connections
@@ -255,7 +255,7 @@ Behind HTTPS, Pantomath marks its sign-in cookie *Secure* automatically
 `127.0.0.1` after `setup-https` restricts it. Limit who can reach it with a
 firewall either way.
 
-**Outbound connections Pantomath makes:**
+**Outbound connections OmenWatch makes:**
 
 | To | When | Needed for |
 |---|---|---|
@@ -283,39 +283,39 @@ at most about a minute, but it can never stall collection.
 IOC feeds have their own timer, so they never delay RSS polling. Their
 limits are those of the CISA download: 30 s without data ends a read, 120 s is
 the most a download may take, and a list over its size limit (30 MB unless
-the feed raises it, up to 500 MB) is rejected. Pantomath asks the server
+the feed raises it, up to 500 MB) is rejected. OmenWatch asks the server
 whether a list changed since the last download and skips it if not.
 
 ## 8. Running the service
 
 ```bash
-sudo systemctl status pantomath
-sudo systemctl restart pantomath
-sudo journalctl -u pantomath -f          # live log
+sudo systemctl status omenwatch
+sudo systemctl restart omenwatch
+sudo journalctl -u omenwatch -f          # live log
 ```
 
-**Environment variables** (set with `sudo systemctl edit pantomath`, then a
+**Environment variables** (set with `sudo systemctl edit omenwatch`, then a
 restart):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PANTOMATH_PORT` | `7373` | Port to listen on |
-| `PANTOMATH_DB` | `/var/lib/pantomath/pantomath.db` | Database file (the setup code and icons live next to it) |
-| `PANTOMATH_IOC_DB` | `ioc.db` next to the database | The IOC database's file |
-| `PANTOMATH_ICON_CACHE` | `icons/` next to the database | Where source icons are cached |
-| `PANTOMATH_OPEN_DASHBOARD` | unset | `1` turns Pantomath's own sign-in off (section 4) |
+| `OMENWATCH_PORT` | `7373` | Port to listen on |
+| `OMENWATCH_DB` | `/var/lib/omenwatch/omenwatch.db` | Database file (the setup code and icons live next to it) |
+| `OMENWATCH_IOC_DB` | `ioc.db` next to the database | The IOC database's file |
+| `OMENWATCH_ICON_CACHE` | `icons/` next to the database | Where source icons are cached |
+| `OMENWATCH_OPEN_DASHBOARD` | unset | `1` turns OmenWatch's own sign-in off (section 4) |
 
 Example, changing the port:
 
 ```bash
-sudo systemctl edit pantomath.service
+sudo systemctl edit omenwatch.service
 # [Service]
-# Environment=PANTOMATH_PORT=8080
-sudo systemctl restart pantomath
+# Environment=OMENWATCH_PORT=8080
+sudo systemctl restart omenwatch
 ```
 
-The service runs as `pantomath` with systemd hardening: no new privileges,
-a read-only system except `/var/lib/pantomath`, no access to home directories,
+The service runs as `omenwatch` with systemd hardening: no new privileges,
+a read-only system except `/var/lib/omenwatch`, no access to home directories,
 and a private `/tmp`.
 
 ## 9. Data, backups and retention
@@ -324,22 +324,22 @@ and a private `/tmp`.
 
 | Path | Contents |
 |---|---|
-| `/var/lib/pantomath/pantomath.db` | Everything: items, sources, settings, webhooks, Our stack, CISA's catalog, sign-ins. SQLite in WAL mode, so `-wal` and `-shm` files sit next to it |
-| `/var/lib/pantomath/ioc.db` | The IOC database (1.0.0): indicators, their sightings, IOC feeds (with their keys) and the allowlist. Its own file, so a large feed import never makes the dashboard wait. Created empty on first start |
-| `/var/lib/pantomath/icons/` | Cached source icons |
-| `/var/lib/pantomath/setup-code` | The one-time setup code, only until first-run setup is done |
-| `/opt/pantomath/` | The application and its Python environment |
+| `/var/lib/omenwatch/omenwatch.db` | Everything: items, sources, settings, webhooks, Our stack, CISA's catalog, sign-ins. SQLite in WAL mode, so `-wal` and `-shm` files sit next to it |
+| `/var/lib/omenwatch/ioc.db` | The IOC database (1.0.0): indicators, their sightings, IOC feeds (with their keys) and the allowlist. Its own file, so a large feed import never makes the dashboard wait. Created empty on first start |
+| `/var/lib/omenwatch/icons/` | Cached source icons |
+| `/var/lib/omenwatch/setup-code` | The one-time setup code, only until first-run setup is done |
+| `/opt/omenwatch/` | The application and its Python environment |
 
 **Backups:**
 
 - From the browser: Settings, Backup and restore, **Download backup**.
-- From the command line, safely while Pantomath runs (needs the `sqlite3`
+- From the command line, safely while OmenWatch runs (needs the `sqlite3`
   package; run as the service user so no root-owned files appear next to
   the database):
 
   ```bash
-  sudo -u pantomath sqlite3 /var/lib/pantomath/pantomath.db ".backup /tmp/pantomath-backup.db"
-  sudo mv /tmp/pantomath-backup.db /var/backups/pantomath-$(date +%F).db
+  sudo -u omenwatch sqlite3 /var/lib/omenwatch/omenwatch.db ".backup /tmp/omenwatch-backup.db"
+  sudo mv /tmp/omenwatch-backup.db /var/backups/omenwatch-$(date +%F).db
   ```
 
 A backup contains the password hashes, sign-in records and webhook
@@ -353,16 +353,16 @@ IOC backup** (a consistent copy, safe while feeds are updating), or on the
 server:
 
 ```bash
-sudo -u pantomath sqlite3 /var/lib/pantomath/ioc.db ".backup /tmp/pantomath-ioc.db"
-sudo mv /tmp/pantomath-ioc.db /var/backups/pantomath-ioc-$(date +%F).db
+sudo -u omenwatch sqlite3 /var/lib/omenwatch/ioc.db ".backup /tmp/omenwatch-ioc.db"
+sudo mv /tmp/omenwatch-ioc.db /var/backups/omenwatch-ioc-$(date +%F).db
 ```
 
 To restore it, stop the service, put the file back as
-`/var/lib/pantomath/ioc.db` (owned by `pantomath`), and start it again.
+`/var/lib/omenwatch/ioc.db` (owned by `omenwatch`), and start it again.
 Restoring the main backup from the browser leaves `ioc.db` as it is.
 
 **Restoring:** Settings, Backup and restore, **Restore from file**. The file
-must be a Pantomath SQLite database (checked before anything changes) of at
+must be a OmenWatch SQLite database (checked before anything changes) of at
 most 2 GB. The current database is copied to a timestamped safety copy next
 to it first, then replaced in one step. Older backups are brought up to date
 automatically (new tables and columns are added, and items get their
@@ -388,7 +388,7 @@ every stored item with the current rules, without re-reading feeds.
 Install the new package over the old one:
 
 ```bash
-sudo apt install ./pantomath_<new version>_amd64.deb
+sudo apt install ./omenwatch_<new version>_amd64.deb
 ```
 
 Data and settings are kept, database changes are applied automatically when
@@ -403,17 +403,17 @@ once (Ctrl+Shift+R).
 | 0.6.0 | Nothing; source health history starts recording |
 | 0.7.0 | Add Our stack; check the CISA catalog downloads |
 | 0.8.0 | Sign-in is now required. Sign in with the Settings password, set a team password, sign the wall screen in again. Optionally *Reprocess all* (tighter wording rules) |
-| 0.8.1 | Nothing, unless the install never had a Settings password: then use `sudo pantomath-admin setup-code` |
+| 0.8.1 | Nothing, unless the install never had a Settings password: then use `sudo omenwatch-admin setup-code` |
 | 0.9.0 | If you ran `setup-https` before, run it again so nginx's default site is really disabled |
 
 ## 11. Monitoring
 
-- **The header** of any open Pantomath: failing sources, and **Not updating**
+- **The header** of any open OmenWatch: failing sources, and **Not updating**
   when no data has arrived for two minutes.
 - **Sources page**: each feed's state, reason, last success and response time.
 - **Settings, Exploited vulnerabilities**: when the catalog last downloaded,
   or why it couldn't.
-- **The journal** (`journalctl -u pantomath`): startup (including "not set
+- **The journal** (`journalctl -u omenwatch`): startup (including "not set
   up yet"), unexpected scheduler errors, catalog download failures and
   retention clean-ups. Individual feed failures are shown on the Sources page
   rather than logged; webhook delivery results appear in Settings, Alerts.
@@ -423,7 +423,7 @@ once (Ctrl+Shift+R).
 
 ## 12. Security checklist
 
-- [ ] HTTPS in front (`setup-https`), with Pantomath restricted to `127.0.0.1`.
+- [ ] HTTPS in front (`setup-https`), with OmenWatch restricted to `127.0.0.1`.
 - [ ] A firewall limiting port 443 (or 7373) to the networks that need it.
 - [ ] Distinct Settings and team passwords; the Settings password known to
       few people; the recovery code stored in a password manager.
@@ -437,7 +437,7 @@ once (Ctrl+Shift+R).
       Sources, and in source exports, so treat exports as confidential.
 
 **Limiting `/api/v1` to your SIEMs.** After `setup-https`, add a block like
-this to `/etc/nginx/sites-available/pantomath`, inside the `listen 443`
+this to `/etc/nginx/sites-available/omenwatch`, inside the `listen 443`
 server and above `location /`, with your SIEM networks, then
 `sudo nginx -t && sudo systemctl reload nginx`:
 
@@ -455,7 +455,7 @@ location /api/v1/ {
 The SIEM has to trust the HTTPS certificate: a certificate from your internal
 CA is better than the self-signed one `setup-https` makes.
 
-What Pantomath protects by design: all data needs a sign-in; passwords,
+What OmenWatch protects by design: all data needs a sign-in; passwords,
 recovery codes, setup codes and webhook keys are stored as salted PBKDF2
 hashes (200,000 iterations); sign-in tokens only as SHA-256 fingerprints;
 the sign-in cookie is HttpOnly and SameSite=Strict; the Our stack list is
@@ -470,31 +470,31 @@ never returned by the API or written to the log.
 
 | Symptom | Likely cause and fix |
 |---|---|
-| The Welcome page rejects the setup code | Show the current code with `sudo pantomath-admin setup-code`. Five wrong tries lock that computer for a minute |
-| Nobody can sign in | Check the passwords; if the Settings password is lost, use the recovery code on the sign-in page, or `sudo pantomath-admin reset-settings-password` |
+| The Welcome page rejects the setup code | Show the current code with `sudo omenwatch-admin setup-code`. Five wrong tries lock that computer for a minute |
+| Nobody can sign in | Check the passwords; if the Settings password is lost, use the recovery code on the sign-in page, or `sudo omenwatch-admin reset-settings-password` |
 | "Too many attempts. Try again in N seconds" | Five wrong tries from that address; wait a minute |
 | The wall screen shows the sign-in page | The team password changed, or the device was signed out; sign in again with Remember this device |
-| **Not updating** in the header | The browser lost the server: check the service (`systemctl status pantomath`) and the network |
+| **Not updating** in the header | The browser lost the server: check the service (`systemctl status omenwatch`) and the network |
 | A source is **Failing** | The reason is on the Sources page; *Test* rechecks it |
 | Exploited items never appear | Settings, Exploited vulnerabilities shows the download status; without internet, set an internal catalog address |
-| The IOC database tab says the database can't be opened | The reason is shown on the tab and in the log (`journalctl -u pantomath`). Every other tab keeps working. Check that `/var/lib/pantomath/ioc.db` belongs to `pantomath`; if it is damaged, restore your copy or move it aside and restart (an empty one is created) |
+| The IOC database tab says the database can't be opened | The reason is shown on the tab and in the log (`journalctl -u omenwatch`). Every other tab keeps working. Check that `/var/lib/omenwatch/ioc.db` belongs to `omenwatch`; if it is damaged, restore your copy or move it aside and restart (an empty one is created) |
 | An IOC feed is **Failing** | The reason is in Settings, IOC feeds; *Test feed* in its edit form rechecks it. HTTP 401 or 403 usually means the feed needs a key, or the key is wrong |
 | A SIEM gets 401 from `/api/v1` | It needs a SIEM key (Settings, Security), not an API key, sent as `Authorization: Bearer pms_…` |
 | Desktop notifications blocked | They need HTTPS (section 6) |
-| The service won't start after a manual database operation | Files in `/var/lib/pantomath` owned by root: `sudo chown -R pantomath:pantomath /var/lib/pantomath` |
-| `dpkg -i` left the package half-installed ("python3-venv" or another dependency missing) | Run `sudo apt install -f`, or reinstall with `sudo apt install ./pantomath_<version>_amd64.deb`, which installs the dependencies |
-| `pantomath-admin` says it can't open the database | The data belongs to the `pantomath` user: run it with `sudo`, for example `sudo pantomath-admin setup-code` |
+| The service won't start after a manual database operation | Files in `/var/lib/omenwatch` owned by root: `sudo chown -R omenwatch:omenwatch /var/lib/omenwatch` |
+| `dpkg -i` left the package half-installed ("python3-venv" or another dependency missing) | Run `sudo apt install -f`, or reinstall with `sudo apt install ./omenwatch_<version>_amd64.deb`, which installs the dependencies |
+| `omenwatch-admin` says it can't open the database | The data belongs to the `omenwatch` user: run it with `sudo`, for example `sudo omenwatch-admin setup-code` |
 | After `setup-https`, `http://host:7373` no longer answers | Expected: the service now listens on 127.0.0.1 only. Use `https://host/` |
-| Restore refused | Not a Pantomath database, over 2 GB, or not enough free disk space for the upload plus a safety copy |
+| Restore refused | Not a OmenWatch database, over 2 GB, or not enough free disk space for the upload plus a safety copy |
 
 ## 14. Uninstalling
 
 ```bash
-sudo apt remove pantomath      # keeps /var/lib/pantomath (your data)
-sudo apt purge pantomath       # removes the data too, and undoes setup-https:
+sudo apt remove omenwatch      # keeps /var/lib/omenwatch (your data)
+sudo apt purge omenwatch       # removes the data too, and undoes setup-https:
                                # the nginx site, certificate and loopback override go,
                                # and nginx's default site is switched back on
 ```
 
-`apt remove` also removes the `pantomath-admin` command and the private
+`apt remove` also removes the `omenwatch-admin` command and the private
 Python environment; only your data is kept.

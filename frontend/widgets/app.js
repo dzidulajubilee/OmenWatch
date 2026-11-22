@@ -5,17 +5,17 @@
 // ------------------------------------------------------- settings auth
 
 // Only Settings and Sources are password-gated (server-side, via
-// pantomath/api/routes.py's protected_router) — the rest of the app
+// omenwatch/api/routes.py's protected_router) — the rest of the app
 // (Dashboard, Live Feed, IOCs, etc.) is intentionally left open, since
 // this is designed as an always-visible SOC/NOC display. See
-// pantomath/auth/settings_auth.py for the full reasoning.
-let settingsToken = sessionStorage.getItem('pantomath_settings_token') || null;
+// omenwatch/auth/settings_auth.py for the full reasoning.
+let settingsToken = sessionStorage.getItem('omenwatch_settings_token') || null;
 let _authUnlockedCallback = null;
 
 function setSettingsToken(token) {
   settingsToken = token;
-  if (token) sessionStorage.setItem('pantomath_settings_token', token);
-  else sessionStorage.removeItem('pantomath_settings_token');
+  if (token) sessionStorage.setItem('omenwatch_settings_token', token);
+  else sessionStorage.removeItem('omenwatch_settings_token');
 }
 
 // Every fetch() call in the app is routed through this wrapper (it
@@ -34,7 +34,7 @@ function setSettingsToken(token) {
     }
     return nativeFetch(url, opts).then(res => {
       // 0.8.0: the server asks for sign-in (session expired or revoked).
-      if (res.status === 401 && res.headers.get('X-Pantomath-Sign-In') && !document.body.classList.contains('signed-out')) {
+      if (res.status === 401 && res.headers.get('X-OmenWatch-Sign-In') && !document.body.classList.contains('signed-out')) {
         showSignIn(null, 'expired');
       }
       return res;
@@ -287,7 +287,7 @@ async function loadDashboard() {
   } catch (e) {
     renderConnStatus();
     document.getElementById('dashKpis').innerHTML =
-      `<div class="dash-error">Couldn't load the dashboard (${escapeHtml(e.message)}). Pantomath will try again in 30 seconds.</div>`;
+      `<div class="dash-error">Couldn't load the dashboard (${escapeHtml(e.message)}). OmenWatch will try again in 30 seconds.</div>`;
     return;
   }
   const range = RANGE_WORDS[ov.hours] || `${ov.hours} hours`;
@@ -343,7 +343,7 @@ function indicatorSummary(i) {
 function renderAttention(ov, range) {
   const el = document.getElementById('dashAttention');
   if (!ov.sources.total) {
-    el.innerHTML = `<li class="card-empty"><strong>No sources yet</strong>Add an RSS or Atom feed and Pantomath starts collecting straight away.<br>
+    el.innerHTML = `<li class="card-empty"><strong>No sources yet</strong>Add an RSS or Atom feed and OmenWatch starts collecting straight away.<br>
       <button type="button" class="btn btn-primary" id="dashAddFirst">+ Add your first source</button></li>`;
     document.getElementById('dashAddFirst').addEventListener('click', () => document.getElementById('addSourceBtnHeader').click());
     return;
@@ -1125,7 +1125,7 @@ async function downloadSourcesExport() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'pantomath-sources.json';
+  a.download = 'omenwatch-sources.json';
   a.click();
 }
 document.getElementById('importSourcesBtn').onclick = () => document.getElementById('importSourcesFile').click();
@@ -1183,7 +1183,7 @@ document.getElementById('backupBtn').onclick = async () => {
   const blob = await res.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'pantomath-backup.db';
+  a.download = 'omenwatch-backup.db';
   a.click();
   URL.revokeObjectURL(a.href);
 };
@@ -1227,8 +1227,8 @@ document.getElementById('restoreFileInput').onchange = async (e) => {
       body = JSON.parse(raw);
     } catch {
       const hint = res.status === 413
-        ? ' — the upload was likely rejected by a reverse proxy (e.g. nginx) before reaching Pantomath. ' +
-          'If you set up HTTPS via `pantomath-admin setup-https`, re-run it with -y to pick up the raised ' +
+        ? ' — the upload was likely rejected by a reverse proxy (e.g. nginx) before reaching OmenWatch. ' +
+          'If you set up HTTPS via `omenwatch-admin setup-https`, re-run it with -y to pick up the raised ' +
           'upload-size limit, then try again.'
         : '';
       resultEl.textContent = `Restore failed: server returned an unexpected non-JSON response (HTTP ${res.status})${hint}`;
@@ -1434,10 +1434,10 @@ document.getElementById('confirmAddWebhook').onclick = async () => {
 
 // -------------------------------------------------------------- shell (0.5.0)
 
-// "New since you last looked" = since this browser last left Pantomath.
+// "New since you last looked" = since this browser last left OmenWatch.
 // Read once at load, so the number stays stable while you're looking, and
 // re-recorded whenever the tab is hidden or closed.
-const LAST_SEEN_KEY = 'pantomath-last-seen';
+const LAST_SEEN_KEY = 'omenwatch-last-seen';
 const previousVisitEnded = (() => {
   try { return parseFloat(localStorage.getItem(LAST_SEEN_KEY)) || null; } catch (e) { return null; }
 })();
@@ -1606,7 +1606,7 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2200);
 }
 
-// navigator.clipboard only exists on https:// or localhost, and Pantomath
+// navigator.clipboard only exists on https:// or localhost, and OmenWatch
 // is often opened over plain http on the LAN — so fall back to the older
 // execCommand route rather than silently doing nothing.
 async function copyText(text, what) {
@@ -1642,15 +1642,15 @@ function downloadText(filename, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Read state lives in this browser: an item is new if Pantomath stored it
+// Read state lives in this browser: an item is new if OmenWatch stored it
 // after you last left or last pressed "Mark all as read", whichever is later.
-const READ_MARK_KEY = 'pantomath-read-mark';
+const READ_MARK_KEY = 'omenwatch-read-mark';
 const pageLoadedAt = Date.now() / 1000;
 // 0.8.0: opening an item marks just that item read, at once. `read` holds
 // items opened after the time mark (so they stop counting as new);
 // `unread` holds items marked unread again from before it. Both are small:
 // entries the time mark already covers are pruned.
-const READ_ITEMS_KEY = 'pantomath-read-items';
+const READ_ITEMS_KEY = 'omenwatch-read-items';
 let readState = loadReadState();
 function loadReadState() {
   try {
@@ -1738,11 +1738,11 @@ const livePanel = createFeedPanel('live-feed', 'liveFeed', 'liveDetail', () => (
 ));
 let liveTotal = 0;
 let liveDensity = 'compact';
-try { liveDensity = localStorage.getItem('pantomath-density') || 'compact'; } catch (e) { /* default */ }
+try { liveDensity = localStorage.getItem('omenwatch-density') || 'compact'; } catch (e) { /* default */ }
 
 function setLiveDensity(density) {
   liveDensity = density;
-  try { localStorage.setItem('pantomath-density', density); } catch (e) { /* not remembered */ }
+  try { localStorage.setItem('omenwatch-density', density); } catch (e) { /* not remembered */ }
   document.querySelectorAll('.feed-table').forEach(t => { t.dataset.density = density; });
   document.querySelectorAll('.density-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.density === density)));
 }
@@ -1908,7 +1908,7 @@ function renderFeedDetail(panel, i, { force = false } = {}) {
     <dl class="detail-meta">
       <dt>Source</dt><dd>${escapeHtml(i.source_name)}</dd>
       <dt>Published</dt><dd>${escapeHtml(fmtFull(effectiveTs(i)))}</dd>
-      <dt>Seen by Pantomath</dt><dd>${escapeHtml(fmtFull(i.fetched_at))}</dd>
+      <dt>Seen by OmenWatch</dt><dd>${escapeHtml(fmtFull(i.fetched_at))}</dd>
       ${i.vendors.length ? `<dt>Vendors</dt><dd>${i.vendors.map(escapeHtml).join(', ')}</dd>` : ''}
       ${i.actors.length ? `<dt>Threat actors</dt><dd>${i.actors.map(escapeHtml).join(', ')}</dd>` : ''}
     </dl>
@@ -2040,7 +2040,7 @@ const FEED_PAGES = {
     fetch: () => fetchItems({ limit: FEED_PAGE_LIMIT, affects_us: true }),
     empty: () => (lastOverviewData && lastOverviewData.affects_us && lastOverviewData.affects_us.watchlist
       ? { title: 'Nothing mentions our stack yet', hint: 'Items that name something on Our stack will appear here.' }
-      : { title: 'Tell Pantomath what you run', hint: 'Add your vendors and products under Settings, Our stack. Stored items are checked straight away.' }),
+      : { title: 'Tell OmenWatch what you run', hint: 'Add your vendors and products under Settings, Our stack. Stored items are checked straight away.' }),
   },
   exploited: {
     key: 'exploited', list: 'feedExploited', mentions: ['cves', 'vendors', 'watch_hits'], fourth: 'ours',
@@ -2205,7 +2205,7 @@ function showTagItems(view, name, total, items) {
 // -------------------------------------------------------------- settings (0.6.1)
 
 // One section at a time; the last one opened is remembered in this browser.
-const SETTINGS_TAB_KEY = 'pantomath-settings-tab';
+const SETTINGS_TAB_KEY = 'omenwatch-settings-tab';
 const SETTINGS_TAB_LOADERS = { 'set-stack': () => loadStackSettings(), 'set-kev': () => loadKevSettings() };
 function showSettingsTab(id) {
   if (!document.getElementById(id)) id = 'set-collection';
@@ -2326,7 +2326,7 @@ async function iocRowsForExport() {
 }
 
 function iocExportName(ext) {
-  return `pantomath-${currentIocType}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  return `omenwatch-${currentIocType}-${new Date().toISOString().slice(0, 10)}.${ext}`;
 }
 
 // Spreadsheet apps execute cells that start with = + - @ as formulas.
@@ -2350,7 +2350,7 @@ document.getElementById('iocCsvBtn').onclick = async () => {
 };
 document.getElementById('iocListBtn').onclick = async () => {
   const rows = await iocRowsForExport();
-  const header = `# Pantomath ${IOC_TYPE_LOWER[currentIocType]}, ${rows.length} entries, exported ${new Date().toISOString()}`;
+  const header = `# OmenWatch ${IOC_TYPE_LOWER[currentIocType]}, ${rows.length} entries, exported ${new Date().toISOString()}`;
   downloadText(iocExportName('txt'), [header, ...rows.map(r => r.name)].join('\n') + '\n');
 };
 
@@ -2430,7 +2430,7 @@ async function testFeedUrl(url) {
     if (res.status === 401) return { ok: false, error: 'Settings are locked. Unlock Sources and try again.' };
     return await res.json();
   } catch (e) {
-    return { ok: false, error: 'Pantomath itself could not be reached' };
+    return { ok: false, error: 'OmenWatch itself could not be reached' };
   }
 }
 
@@ -2614,7 +2614,7 @@ function renderStackBanner(ov) {
   let tone, title, text, action = null;
   if (!ours.watchlist) {
     tone = 'setup';
-    title = 'Tell Pantomath what you run';
+    title = 'Tell OmenWatch what you run';
     text = "List your vendors, products and systems, and every item that mentions one is marked Affects us. Exploited vulnerabilities are marked from CISA's catalog.";
     action = ['Set up Our stack', () => openSettingsTab('set-stack')];
   } else if (ours.items) {
@@ -2771,7 +2771,7 @@ async function loadKevSettings(status = null) {
   } else if (status.updated_at) {
     hint.textContent = `Updated ${timeAgo(status.updated_at)}. ${status.enabled ? 'Checked again once a day.' : 'Automatic updates are off.'}`;
   } else {
-    hint.textContent = status.enabled ? 'The first download starts a few minutes after Pantomath starts, or press Update now.' : 'Turned off.';
+    hint.textContent = status.enabled ? 'The first download starts a few minutes after OmenWatch starts, or press Update now.' : 'Turned off.';
   }
   const url = document.getElementById('kevUrl');
   if (document.activeElement !== url) url.value = status.url || '';
@@ -2863,9 +2863,9 @@ function showSignIn(status, reason = null) {
 // server), sign in, and reset with the recovery code.
 const SIGNIN_MODES = {
   setup: {
-    title: 'Welcome to Pantomath', button: 'Create and sign in', remember: true,
+    title: 'Welcome to OmenWatch', button: 'Create and sign in', remember: true,
     sub: 'Create the Settings password. It manages sources and settings, and signs you in until you add a team password for everyone else.',
-    code: 'Setup code', codeHint: 'Printed at the end of the installation. Show it again on the server with <code>sudo pantomath-admin setup-code</code>.',
+    code: 'Setup code', codeHint: 'Printed at the end of the installation. Show it again on the server with <code>sudo omenwatch-admin setup-code</code>.',
     password: 'New Settings password (at least 8 characters)', confirm: true, link: null,
   },
   login: {
@@ -2874,8 +2874,8 @@ const SIGNIN_MODES = {
   },
   recover: {
     title: 'Reset the Settings password', button: 'Reset and sign in', remember: false,
-    sub: 'Enter the recovery code you saved when Pantomath was set up. It works once, and you get a new one straight away.',
-    code: 'Recovery code', codeHint: 'Lost that too? On the server, run <code>sudo pantomath-admin reset-settings-password</code>.',
+    sub: 'Enter the recovery code you saved when OmenWatch was set up. It works once, and you get a new one straight away.',
+    code: 'Recovery code', codeHint: 'Lost that too? On the server, run <code>sudo omenwatch-admin reset-settings-password</code>.',
     password: 'New Settings password (at least 8 characters)', confirm: true, link: 'Back to sign in',
   },
 };
@@ -2890,7 +2890,7 @@ function setSigninMode(mode, reason = null) {
   document.getElementById('signinSub').textContent = m.sub
     || (reason === 'expired' ? 'Your session has ended. Sign in again to carry on where you were.'
       : st.team_password ? 'Use the team password. Administrators can use the Settings password.'
-      : 'Pantomath now asks everyone to sign in. Until a team password is added in Settings, use the Settings password.');
+      : 'OmenWatch now asks everyone to sign in. Until a team password is added in Settings, use the Settings password.');
   document.getElementById('signinCodeField').hidden = !m.code;
   if (m.code) {
     document.getElementById('signinCodeLabel').textContent = m.code;
@@ -2948,7 +2948,7 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     res = await fetch(request[0], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request[1]) });
   } catch (err) {
     setSigninBusy(false, m.button);
-    signinError("Pantomath can't be reached. Check the connection and try again.");
+    signinError("OmenWatch can't be reached. Check the connection and try again.");
     return;
   }
   const body = await res.json().catch(() => ({}));
@@ -2991,8 +2991,8 @@ async function loadSecuritySettings() {
   const status = await statusRes.json();
   const { devices, api_keys: keys, siem_keys: siemKeys = [] } = await sessionsRes.json();
   document.getElementById('teamPwHint').textContent = status.team_password
-    ? "Set. People sign in with it to view Pantomath; it can't change settings."
-    : 'Not set, so only the Settings password can sign in, and everyone who views Pantomath can also change it. Set a team password for viewers.';
+    ? "Set. People sign in with it to view OmenWatch; it can't change settings."
+    : 'Not set, so only the Settings password can sign in, and everyone who views OmenWatch can also change it. Set a team password for viewers.';
   document.getElementById('teamPwBtn').textContent = status.team_password ? 'Change' : 'Set team password';
   document.getElementById('teamPwRemove').hidden = !status.team_password;
 
@@ -3073,7 +3073,7 @@ document.getElementById('apiKeyCreateBtn').addEventListener('click', async () =>
   box.hidden = false;
   box.innerHTML = `<strong>Key for ${escapeHtml(label)}</strong><code>${escapeHtml(body.key)}</code>
     <button type="button" class="btn btn-sm" id="apiKeyCopy">Copy key</button>
-    <span class="muted"> Copy it now: Pantomath keeps only a fingerprint and can't show it again.</span>`;
+    <span class="muted"> Copy it now: OmenWatch keeps only a fingerprint and can't show it again.</span>`;
   document.getElementById('apiKeyCopy').onclick = () => copyText(body.key, 'the API key');
   loadSecuritySettings();
 });
@@ -3116,7 +3116,7 @@ function connectWs() {
   const status = await fetchAuthStatus();
   if (!status || !status.signed_in) {
     showSignIn(status || {});
-    if (!status) signinError("Pantomath can't be reached right now. Check the connection, then sign in.");
+    if (!status) signinError("OmenWatch can't be reached right now. Check the connection, then sign in.");
     return;
   }
   authStatus = status;

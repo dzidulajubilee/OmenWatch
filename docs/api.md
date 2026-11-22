@@ -1,8 +1,8 @@
-# Pantomath API reference
+# OmenWatch API reference
 
 Everything the web interface does goes through this HTTP API, so scripts can
 do the same. All paths are relative to the server, for example
-`https://pantomath.example`. Requests and responses are JSON unless noted.
+`https://omenwatch.example`. Requests and responses are JSON unless noted.
 How the pieces fit together is in [how-it-works.md](how-it-works.md#9-the-api-layer).
 
 **Contents**
@@ -29,7 +29,7 @@ Three access levels:
 | Level | How to get it | Header or cookie |
 |---|---|---|
 | **None** | — | Only section 3 and the WebSocket handshake |
-| **Signed in** (read everything) | sign in with a password (browser), or create an **API key** in Settings, Security | cookie `pantomath_session`, or `Authorization: Bearer pmk_…` |
+| **Signed in** (read everything) | sign in with a password (browser), or create an **API key** in Settings, Security | cookie `omenwatch_session`, or `Authorization: Bearer pmk_…` |
 | **Settings** (change things) | `POST /api/settings/auth/login` with the Settings password, while signed in | `X-Settings-Token: <token>` (valid one hour) |
 | **SIEM** (the lookup API only) | create a **SIEM key** in Settings, Security | `Authorization: Bearer pms_…`, accepted by `/api/v1` and nothing else (section 10) |
 
@@ -39,12 +39,12 @@ Settings-level calls also obtain a Settings token:
 ```bash
 KEY="pmk_…"
 TOKEN=$(curl -s -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"password":"<Settings password>"}' https://pantomath.example/api/settings/auth/login | jq -r .token)
-curl -H "Authorization: Bearer $KEY" -H "X-Settings-Token: $TOKEN" https://pantomath.example/api/sources
+  -d '{"password":"<Settings password>"}' https://omenwatch.example/api/settings/auth/login | jq -r .token)
+curl -H "Authorization: Bearer $KEY" -H "X-Settings-Token: $TOKEN" https://omenwatch.example/api/sources
 ```
 
 A valid Settings token alone also counts as signed in. When sign-in is turned
-off (`PANTOMATH_OPEN_DASHBOARD=1`), "signed in" endpoints need no
+off (`OMENWATCH_OPEN_DASHBOARD=1`), "signed in" endpoints need no
 credentials.
 
 ## 2. Conventions and errors
@@ -59,7 +59,7 @@ credentials.
 | Status | Meaning |
 |---|---|
 | 400 | Invalid input (the message says what) |
-| 401 | Not signed in (with header `X-Pantomath-Sign-In: required`), Settings token missing or expired, or a wrong password or code |
+| 401 | Not signed in (with header `X-OmenWatch-Sign-In: required`), Settings token missing or expired, or a wrong password or code |
 | 404 | Not found |
 | 409 | Conflict: already set up, not set up yet, a duplicate name |
 | 429 | Too many attempts; the message says how long to wait |
@@ -97,7 +97,7 @@ published).
 | `has_cve`, `has_actor` | Only items with at least one CVE / threat actor |
 | `affects_us`, `exploited` | Only items marked Affects us / Exploited |
 | `bookmarked_only` | Only saved items |
-| `date_from`, `date_to` | `YYYY-MM-DD`, by the date Pantomath stored the item |
+| `date_from`, `date_to` | `YYYY-MM-DD`, by the date OmenWatch stored the item |
 
 Each item:
 
@@ -284,7 +284,7 @@ browser sessions and ordinary API keys get 401. Times here are ISO 8601 in
 UTC (`2026-10-18T22:40:00Z`).
 
 Lookups return only active indicators unless `include_expired` is true, and
-never false positives or allowlisted values. Pantomath works out each
+never false positives or allowlisted values. OmenWatch works out each
 value's type and restores defanged text. A miss is a normal `200` with
 `"match": false`.
 
@@ -321,7 +321,7 @@ campaign, first_seen, last_seen, expires_at`. With `since` (a Unix time or
 ISO time), every indicator that changed after it, **whatever its status**,
 so an incremental sync can also remove what expired or was marked a false
 positive (`txt` lists only the active ones, since it can't say more). Send
-the response's `X-Pantomath-Exported-At` header as the next `since`. It is
+the response's `X-OmenWatch-Exported-At` header as the next `since` (also sent as `X-Pantomath-Exported-At`, its name before 2.0). It is
 rounded down to the second, so a change made during an export is sent again
 next time rather than missed. Deleted indicators don't appear; a full export
 now and then catches those.
@@ -353,7 +353,7 @@ Critical and high items from the last 24 hours:
 
 ```bash
 curl -s -H "Authorization: Bearer $KEY" \
-  "https://pantomath.example/api/items?severity=critical,high&limit=100" \
+  "https://omenwatch.example/api/items?severity=critical,high&limit=100" \
   | jq --argjson since "$(date -d '24 hours ago' +%s)" '.[] | select(.fetched_at > $since) | {severity, title, link, reasons: .priority_reasons}'
 ```
 
@@ -361,21 +361,21 @@ A firewall blocklist of every IP address mentioned this week:
 
 ```bash
 curl -s -H "Authorization: Bearer $KEY" \
-  "https://pantomath.example/api/iocs?type=ip&limit=10000&date_from=$(date -d '7 days ago' +%F)" \
-  | jq -r '.[].name' > pantomath-ips.txt
+  "https://omenwatch.example/api/iocs?type=ip&limit=10000&date_from=$(date -d '7 days ago' +%F)" \
+  | jq -r '.[].name' > omenwatch-ips.txt
 ```
 
 Everything that affects your stack and is being exploited:
 
 ```bash
-curl -s -H "Authorization: Bearer $KEY" "https://pantomath.example/api/items?affects_us=true&exploited=true"
+curl -s -H "Authorization: Bearer $KEY" "https://omenwatch.example/api/items?affects_us=true&exploited=true"
 ```
 
 Keep a firewall's block list of confident C2 addresses up to date (a SIEM key):
 
 ```bash
 curl -s -H "Authorization: Bearer $SIEM_KEY" \
-  "https://pantomath.example/api/v1/export?type=ip&min_confidence=70&format=txt" > c2-ips.txt
+  "https://omenwatch.example/api/v1/export?type=ip&min_confidence=70&format=txt" > c2-ips.txt
 ```
 
 Check a handful of values from an alert:
@@ -383,5 +383,5 @@ Check a handful of values from an alert:
 ```bash
 curl -s -H "Authorization: Bearer $SIEM_KEY" -H "Content-Type: application/json" \
   -d '{"values": ["203.0.113.45", "hxxp://login-secure-update[.]example/"]}' \
-  https://pantomath.example/api/v1/lookup | jq '.results[] | select(.match)'
+  https://omenwatch.example/api/v1/lookup | jq '.results[] | select(.match)'
 ```

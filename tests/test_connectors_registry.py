@@ -1,7 +1,7 @@
 import pytest
 
-from pantomath.connectors.registry import CONNECTOR_REGISTRY, available_connector_types, get_connector
-from pantomath.connectors.rss import RSSConnector
+from omenwatch.connectors.registry import CONNECTOR_REGISTRY, available_connector_types, get_connector
+from omenwatch.connectors.rss import RSSConnector
 
 
 def test_rss_is_the_only_registered_connector():

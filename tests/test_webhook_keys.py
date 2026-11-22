@@ -1,4 +1,4 @@
-from pantomath.alerts.webhook_keys import hash_key, mask_url, new_salt, verify_key
+from omenwatch.alerts.webhook_keys import hash_key, mask_url, new_salt, verify_key
 
 
 def test_hash_key_is_deterministic_for_the_same_salt():

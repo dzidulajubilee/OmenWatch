@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 
@@ -119,8 +119,8 @@ def test_webhook_test_endpoint_actually_delivers_http_post(local_webhook_server)
 
     assert len(_CapturingHandler.received_payloads) == 1
     payload = _CapturingHandler.received_payloads[0]
-    assert "Pantomath test alert" in payload["text"]
-    assert payload["pantomath"]["title"] == "Pantomath test alert"
+    assert "OmenWatch test alert" in payload["text"]
+    assert payload["omenwatch"]["title"] == "OmenWatch test alert"
 
     webhook_after = client.get("/api/webhooks").json()[0]
     assert webhook_after["last_status"].startswith("ok")

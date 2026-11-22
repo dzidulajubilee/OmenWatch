@@ -1,6 +1,6 @@
 /**
  * Light/dark theme toggle. The actual switch happens via a single
- * `data-theme` attribute on <html> — see themes/pantomath.css for the
+ * `data-theme` attribute on <html> — see themes/omenwatch.css for the
  * variable overrides. This file just handles the two toggle controls
  * (header button + Settings row) and persistence.
  *
@@ -14,7 +14,7 @@ function getTheme() {
 
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('pantomath-theme', theme);
+  localStorage.setItem('omenwatch-theme', theme);
   syncThemeControls();
 }
 

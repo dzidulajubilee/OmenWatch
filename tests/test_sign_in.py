@@ -1,5 +1,5 @@
 """
-0.8.0: signing in to Pantomath. Every data endpoint needs a session (a
+0.8.0: signing in to OmenWatch. Every data endpoint needs a session (a
 cookie from the sign-in page, an API key, or an unlocked Settings token);
 the team password views, the Settings password views and administers.
 """
@@ -9,9 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from pantomath.app import app
-from pantomath.auth import setup_code, sign_in
-from pantomath.database.sqlite import get_db
+from omenwatch.app import app
+from omenwatch.auth import setup_code, sign_in
+from omenwatch.database.sqlite import get_db
 
 SETTINGS_PW = "settings-pass-123"
 TEAM_PW = "team-pass-4567"
@@ -19,7 +19,7 @@ TEAM_PW = "team-pass-4567"
 
 @pytest.fixture(autouse=True)
 async def signed_out(fresh_db, monkeypatch):
-    monkeypatch.delenv("PANTOMATH_OPEN_DASHBOARD", raising=False)
+    monkeypatch.delenv("OMENWATCH_OPEN_DASHBOARD", raising=False)
     yield
 
 
@@ -27,7 +27,7 @@ def _setup() -> TestClient:
     """A fresh install set up through the sign-in page; returns that (admin) browser."""
     admin = TestClient(app)
     admin.get("/api/auth/status")                               # creates the setup code, as the service does
-    code = setup_code.read_code()                               # what `pantomath-admin setup-code` shows
+    code = setup_code.read_code()                               # what `omenwatch-admin setup-code` shows
     resp = admin.post("/api/auth/setup", json={"password": SETTINGS_PW, "setup_code": code})
     assert resp.status_code == 200 and resp.json()["recovery_code"]
     admin.headers["X-Settings-Token"] = resp.json()["settings_token"]
@@ -43,7 +43,7 @@ def _signed_in(password=TEAM_PW, remember=False) -> TestClient:
 
 
 def test_every_data_endpoint_needs_sign_in():
-    from pantomath.api.routes import protected_router, router
+    from omenwatch.api.routes import protected_router, router
 
     anonymous = TestClient(app)
     checked = 0
@@ -54,7 +54,7 @@ def test_every_data_endpoint_needs_sign_in():
         assert anonymous.get(path).status_code == 401, path
         checked += 1
     assert checked >= 15   # the walk really covered the routers
-    assert anonymous.get("/api/items").headers["X-Pantomath-Sign-In"] == "required"
+    assert anonymous.get("/api/items").headers["X-OmenWatch-Sign-In"] == "required"
     assert anonymous.get("/").status_code == 200           # the page shell (no data) still loads
     assert anonymous.get("/api/auth/status").json()["signed_in"] is False
 

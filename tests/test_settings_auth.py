@@ -1,5 +1,5 @@
 """
-Tests for pantomath/auth/settings_auth.py and the /api/settings/auth/*
+Tests for omenwatch/auth/settings_auth.py and the /api/settings/auth/*
 endpoints — the password gate added specifically for the Settings and
 Sources pages (see routes.py's `protected_router`), while the rest of
 the app (Dashboard, Live Feed, IOCs, etc.) stays completely open by
@@ -8,7 +8,7 @@ design.
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 
@@ -200,7 +200,7 @@ def test_expired_session_is_rejected():
     has already passed must be treated exactly like an invalid one.
     """
     import time
-    from pantomath.auth import settings_auth
+    from omenwatch.auth import settings_auth
 
     setup = client.post("/api/settings/auth/setup", json={"password": "correct-horse-battery"}).json()
     token = setup["token"]

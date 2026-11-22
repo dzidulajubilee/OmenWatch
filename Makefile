@@ -9,18 +9,18 @@ dev:
 	@echo "Run the dashboard with: make run"
 
 run:
-	PANTOMATH_DB=./data/pantomath.db PYTHONPATH=. \
-		venv/bin/uvicorn pantomath.app:app --reload --port 7373
+	OMENWATCH_DB=./data/omenwatch.db PYTHONPATH=. \
+		venv/bin/uvicorn omenwatch.app:app --reload --port 7373
 
 test:
 	PYTHONPATH=. python3 -m pytest tests/ -v
 
 lint:
-	ruff check pantomath/ tests/
+	ruff check omenwatch/ tests/
 
 fmt:
-	ruff check --fix pantomath/ tests/
-	ruff format pantomath/ tests/
+	ruff check --fix omenwatch/ tests/
+	ruff format omenwatch/ tests/
 
 package:
 	./build.sh all

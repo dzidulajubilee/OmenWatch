@@ -11,9 +11,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
-from pantomath.database.sqlite import get_db
-from pantomath.feeds.scheduler import Scheduler
+from omenwatch.app import app
+from omenwatch.database.sqlite import get_db
+from omenwatch.feeds.scheduler import Scheduler
 
 client = TestClient(app)
 HOUR = 3600

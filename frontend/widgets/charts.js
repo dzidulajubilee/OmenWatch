@@ -1,5 +1,5 @@
 /**
- * Dependency-free chart primitives. Pantomath deliberately avoids a chart
+ * Dependency-free chart primitives. OmenWatch deliberately avoids a chart
  * library (Recharts, Chart.js, etc.) for these simple cases — a handful of
  * bars and a sparkline don't need 100KB+ of dependency for something CSS
  * can render just as well, and it keeps the dashboard fast to load.

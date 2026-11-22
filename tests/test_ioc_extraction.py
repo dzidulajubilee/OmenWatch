@@ -1,4 +1,4 @@
-from pantomath.intelligence.ioc_extraction import extract_iocs
+from omenwatch.intelligence.ioc_extraction import extract_iocs
 
 
 def test_extracts_cve():

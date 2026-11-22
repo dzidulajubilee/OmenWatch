@@ -17,7 +17,7 @@ off-by-one in the recursive split around the last segment of the list).
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 
@@ -48,7 +48,7 @@ async def _seed(db):
 
 
 async def test_list_tags_counts_and_orders_by_count_desc_name_asc():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     await _seed(db)
     await db.close()
@@ -65,7 +65,7 @@ async def test_list_tags_counts_and_orders_by_count_desc_name_asc():
 
 
 async def test_list_tags_respects_limit():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     await _seed(db)
     await db.close()
@@ -76,7 +76,7 @@ async def test_list_tags_respects_limit():
 
 
 async def test_list_iocs_pagination_offset_matches_full_list():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('s1', 'Source', 'http://x.com/feed', 'news')")
     await _insert_item(db, "1", cves="CVE-2026-1,CVE-2026-2")
@@ -99,7 +99,7 @@ async def test_list_iocs_pagination_offset_matches_full_list():
 
 
 async def test_iocs_summary_counts_distinct_values_per_type():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('s1', 'Source', 'http://x.com/feed', 'news')")
     await db.execute(
@@ -124,7 +124,7 @@ async def test_items_filtered_by_ioc_type_alone_matches_any_value_of_that_type()
     type' — this is what the calendar's day-drilldown uses (all CVEs
     mentioned that day, not one specific CVE).
     """
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('s1', 'Source', 'http://x.com/feed', 'news')")
     await db.execute(
@@ -153,7 +153,7 @@ async def test_items_filtered_by_ioc_type_alone_matches_any_value_of_that_type()
 
 async def test_iocs_and_summary_respect_date_range():
     import datetime
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     day1 = datetime.datetime.strptime("2026-07-01", "%Y-%m-%d").timestamp()
     day2 = datetime.datetime.strptime("2026-07-15", "%Y-%m-%d").timestamp()
     db = await get_db()
@@ -182,7 +182,7 @@ async def test_iocs_and_summary_respect_date_range():
 
 async def test_iocs_calendar_buckets_counts_by_day_and_respects_range():
     import datetime
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     day1 = datetime.datetime.strptime("2026-07-01", "%Y-%m-%d").timestamp()
     day1_later = day1 + 3600  # same day, an hour later
     day2 = datetime.datetime.strptime("2026-07-02", "%Y-%m-%d").timestamp()
@@ -222,7 +222,7 @@ async def test_iocs_calendar_buckets_counts_by_day_and_respects_range():
 
 async def test_stats_top_vendors_and_articles_by_day_reflect_seeded_items():
     import time
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
     db = await get_db()
     now = time.time()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('s1', 'Source', 'http://x.com/feed', 'news')")

@@ -1,9 +1,9 @@
 """
-Tests for the pantomath-admin command line and the database-connection
+Tests for the omenwatch-admin command line and the database-connection
 cleanup behind it.
 
 Real bugs these cover:
-  - Run without sudo, pantomath-admin printed a SQLite traceback and then never
+  - Run without sudo, omenwatch-admin printed a SQLite traceback and then never
     exited: get_db()/init_db() didn't close the connection on error, and
     aiosqlite's non-daemon thread kept the process alive.
   - After `setup-https` the setup code still pointed at http://host:7373,
@@ -16,8 +16,8 @@ import sys
 import aiosqlite
 import pytest
 
-from pantomath import cli, https_setup
-from pantomath.database import sqlite as db_module
+from omenwatch import cli, https_setup
+from omenwatch.database import sqlite as db_module
 
 
 async def test_get_db_closes_the_connection_when_setup_fails(tmp_path, monkeypatch):
@@ -71,11 +71,11 @@ async def test_init_db_closes_the_connection_when_a_step_fails(tmp_path, monkeyp
 
 def test_a_damaged_database_ends_the_process_instead_of_hanging(tmp_path):
     """The real symptom: after the error the process must END, not sit there forever."""
-    damaged = tmp_path / "pantomath.db"
+    damaged = tmp_path / "omenwatch.db"
     damaged.write_bytes(b"this is not a sqlite database" * 100)
     script = (
         "import asyncio, sys\n"
-        "from pantomath.database import sqlite as m\n"
+        "from omenwatch.database import sqlite as m\n"
         "m.DB_PATH = sys.argv[1]\n"
         "try:\n"
         "    asyncio.run(m.init_db())\n"
@@ -94,7 +94,7 @@ def test_a_damaged_database_ends_the_process_instead_of_hanging(tmp_path):
 def test_admin_command_without_access_says_to_use_sudo(tmp_path, monkeypatch, capsys):
     folder = tmp_path / "data"
     folder.mkdir()
-    monkeypatch.setattr(db_module, "DB_PATH", str(folder / "pantomath.db"))
+    monkeypatch.setattr(db_module, "DB_PATH", str(folder / "omenwatch.db"))
     monkeypatch.setattr(cli.os, "geteuid", lambda: 1000)
     monkeypatch.setattr(cli.os, "access", lambda path, mode: False)
 
@@ -103,12 +103,12 @@ def test_admin_command_without_access_says_to_use_sudo(tmp_path, monkeypatch, ca
 
     assert exit_info.value.code == 1
     out = capsys.readouterr().out
-    assert "Run it with sudo: sudo pantomath-admin setup-code" in out
+    assert "Run it with sudo: sudo omenwatch-admin setup-code" in out
     assert "Traceback" not in out
 
 
 def test_admin_command_is_allowed_for_root_and_for_a_writable_database(tmp_path, monkeypatch):
-    monkeypatch.setattr(db_module, "DB_PATH", str(tmp_path / "pantomath.db"))
+    monkeypatch.setattr(db_module, "DB_PATH", str(tmp_path / "omenwatch.db"))
     monkeypatch.setattr(cli.os, "geteuid", lambda: 0)
     cli._require_database_access("setup-code")  # root: fine
     monkeypatch.setattr(cli.os, "geteuid", lambda: 1000)
@@ -116,9 +116,9 @@ def test_admin_command_is_allowed_for_root_and_for_a_writable_database(tmp_path,
 
 
 def test_dashboard_url_is_https_once_nginx_is_set_up(tmp_path, monkeypatch):
-    monkeypatch.setattr(cli.socket, "gethostname", lambda: "pantomath-host")
-    monkeypatch.setattr(https_setup, "SITE_ENABLED", tmp_path / "pantomath")
-    assert cli._dashboard_url() == "http://pantomath-host:7373"
+    monkeypatch.setattr(cli.socket, "gethostname", lambda: "omenwatch-host")
+    monkeypatch.setattr(https_setup, "SITE_ENABLED", tmp_path / "omenwatch")
+    assert cli._dashboard_url() == "http://omenwatch-host:7373"
 
-    (tmp_path / "pantomath").write_text("site")
-    assert cli._dashboard_url() == "https://pantomath-host"
+    (tmp_path / "omenwatch").write_text("site")
+    assert cli._dashboard_url() == "https://omenwatch-host"

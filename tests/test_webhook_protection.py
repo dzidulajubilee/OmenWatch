@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 

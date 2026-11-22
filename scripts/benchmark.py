@@ -1,9 +1,9 @@
 """
 IOC lookup benchmark for the v2 performance targets.
 
-    python scripts/benchmark.py --size 1000000 --data /var/tmp/pantomath-bench
+    python scripts/benchmark.py --size 1000000 --data /var/tmp/omenwatch-bench
 
-Builds an IOC database of --size synthetic indicators with Pantomath's own
+Builds an IOC database of --size synthetic indicators with OmenWatch's own
 import code (kept in --data, so a second run reuses it), starts a real
 server on it, and measures, with --clients SIEM clients at once and about
 half of the looked-up values matching:
@@ -73,10 +73,10 @@ def values(rng, n, tag):
 
 
 async def seed(data, size):
-    from pantomath.database.sqlite import init_db
-    from pantomath.ioc import normalize
-    from pantomath.ioc.db import get_ioc_db, init_ioc_db
-    from pantomath.ioc.store import Arrival, Source, ingest
+    from omenwatch.database.sqlite import init_db
+    from omenwatch.ioc import normalize
+    from omenwatch.ioc.db import get_ioc_db, init_ioc_db
+    from omenwatch.ioc.store import Arrival, Source, ingest
 
     await init_db()
     await init_ioc_db()
@@ -94,7 +94,7 @@ async def seed(data, size):
         source = Source(id="bench", name="Benchmark feed", confidence=80, lifetime_days=-1)
         batch = []
         for i, (kind, value) in enumerate(values(rng, size, "m")):
-            if i < 1000:   # the generator must produce what Pantomath stores
+            if i < 1000:   # the generator must produce what OmenWatch stores
                 assert normalize.normalize_typed(kind, value)[1] == value, value
             if len(sample) < SAMPLE:
                 sample.append(value)
@@ -119,8 +119,8 @@ async def seed(data, size):
 
 async def _siem_key():
     """A SIEM key for /api/v1, and an ordinary API key for the Settings calls."""
-    from pantomath.auth import settings_auth, sign_in
-    from pantomath.database.sqlite import get_db
+    from omenwatch.auth import settings_auth, sign_in
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     try:
@@ -236,8 +236,8 @@ async def load(client, sample, batch, clients, seconds, stop=None):
 
 
 async def db_only(sample, runs=3000):
-    from pantomath.ioc.db import get_ioc_db
-    from pantomath.ioc.routes import lookup_values as lookup
+    from omenwatch.ioc.db import get_ioc_db
+    from omenwatch.ioc.routes import lookup_values as lookup
 
     rng = random.Random(7)
     db = await get_ioc_db()
@@ -295,7 +295,7 @@ async def settings_token(client, api_key):
 async def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--size", type=int, default=100_000)
-    ap.add_argument("--data", default="/var/tmp/pantomath-bench")
+    ap.add_argument("--data", default="/var/tmp/omenwatch-bench")
     ap.add_argument("--clients", type=int, default=20)
     ap.add_argument("--seconds", type=int, default=20)
     ap.add_argument("--import-size", type=int, default=500_000)
@@ -303,10 +303,10 @@ async def main():
 
     data = os.path.join(args.data, str(args.size))
     os.makedirs(data, exist_ok=True)
-    os.environ["PANTOMATH_DB"] = os.path.join(data, "pantomath.db")
+    os.environ["OMENWATCH_DB"] = os.path.join(data, "omenwatch.db")
     base_ioc = os.path.join(data, "ioc.db")
-    os.environ["PANTOMATH_IOC_DB"] = base_ioc
-    os.environ.pop("PANTOMATH_OPEN_DASHBOARD", None)
+    os.environ["OMENWATCH_IOC_DB"] = base_ioc
+    os.environ.pop("OMENWATCH_OPEN_DASHBOARD", None)
     print(f"== {args.size:,} indicators in {data}")
     sample, (key, api_key), seed_rate, had = await seed(data, args.size)
     print("  reused the existing database" if had else f"  seeded at {seed_rate:,.0f} indicators/s")
@@ -317,7 +317,7 @@ async def main():
     # The server imports into a copy, so the base database stays at --size.
     with sqlite3.connect(base_ioc) as src, sqlite3.connect(work_ioc) as dst:
         src.backup(dst)
-    os.environ["PANTOMATH_IOC_DB"] = work_ioc
+    os.environ["OMENWATCH_IOC_DB"] = work_ioc
 
     print("  database lookup, in-process")
     results = {"size": args.size, "clients": args.clients, "seed_per_second": seed_rate,
@@ -327,7 +327,7 @@ async def main():
     import httpx
 
     port = free_port()
-    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "pantomath.app:app",
+    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "omenwatch.app:app",
                                "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"])
     try:
         memory = Memory(server.pid)

@@ -8,7 +8,7 @@ than re-testing every endpoint exhaustively.
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
+from omenwatch.app import app
 
 client = TestClient(app)
 
@@ -147,7 +147,7 @@ async def test_iocs_endpoint_paginates_through_all_distinct_values():
     deterministic (count desc, name asc) so items don't reshuffle
     between page requests.
     """
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -189,7 +189,7 @@ async def test_has_cve_filter_finds_cve_bearing_items_regardless_of_source_categ
     filtered by the source's manually-assigned category. has_cve=true
     finds it by content instead.
     """
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -215,7 +215,7 @@ async def test_has_cve_filter_finds_cve_bearing_items_regardless_of_source_categ
 
 async def test_has_actor_filter_finds_actor_bearing_items_regardless_of_source_category():
     """Same fix, applied to Malware: a detected threat actor is a content signal, not a source-category one."""
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -237,7 +237,7 @@ async def test_has_actor_filter_finds_actor_bearing_items_regardless_of_source_c
 
 
 async def test_reprocess_endpoint_backfills_legacy_item_via_api():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute(
@@ -268,7 +268,7 @@ def test_poll_all_endpoint_reports_source_count():
 
 
 async def test_items_count_matches_items_list_length_for_same_filters():
-    from pantomath.database.sqlite import get_db
+    from omenwatch.database.sqlite import get_db
 
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('sc1', 'S', 'http://c.com/f', 'news')")

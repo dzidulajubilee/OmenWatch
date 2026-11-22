@@ -1,7 +1,7 @@
 import pytest
 
-from pantomath.connectors.rss import RSSConnector
-from pantomath.database.sqlite import get_db
+from omenwatch.connectors.rss import RSSConnector
+from omenwatch.database.sqlite import get_db
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ async def test_duplicate_items_are_not_refetched_for_deep_extraction(sample_sour
     attempted, or every poll cycle would re-fetch every already-stored
     article's page forever.
     """
-    import pantomath.connectors.rss as rss_module
+    import omenwatch.connectors.rss as rss_module
 
     fetch_calls = []
     original = rss_module.fetch_article_text_sync

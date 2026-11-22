@@ -1,8 +1,8 @@
-# Pantomath documentation
+# OmenWatch documentation
 
 | Document | For | Covers |
 |---|---|---|
-| [User guide](user-guide.md) | Everyone who uses Pantomath | Signing in, every page, priority and reasons, indicators and exports, sources and settings, alerts, the wall screen, keyboard shortcuts |
+| [User guide](user-guide.md) | Everyone who uses OmenWatch | Signing in, every page, priority and reasons, indicators and exports, sources and settings, alerts, the wall screen, keyboard shortcuts |
 | [Administration guide](administration.md) | Whoever installs and runs it | Requirements, installing, first-time setup, passwords and sign-in, admin commands, HTTPS, network, the service, backups, upgrading, monitoring, security checklist, troubleshooting |
 | [How it works](how-it-works.md) | Anyone who wants to understand or change it | Architecture, the collection pipeline, every analysis rule, dates and counting, data model, API layer, security model, frontend, packaging, tests, extending |
 | [API reference](api.md) | Scripts and integrations | Authentication, every endpoint, the WebSocket, examples |

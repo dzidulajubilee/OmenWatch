@@ -46,7 +46,7 @@ function truncateAtSentence(text, targetLen, maxLen) {
 }
 
 // When an item was published, for display. The feed's own date unless it
-// is later than when Pantomath fetched the item (a publisher's clock or
+// is later than when OmenWatch fetched the item (a publisher's clock or
 // timezone is wrong) — the same rule as _EFFECTIVE_TS in api/routes.py.
 function effectiveTs(item) {
   const published = Number(item.published) || 0;
@@ -72,10 +72,10 @@ function fmtFull(ts) {
 }
 
 function timeTitle(item) {
-  return `Published ${fmtFull(effectiveTs(item))}. Seen by Pantomath ${fmtFull(item.fetched_at)}.`;
+  return `Published ${fmtFull(effectiveTs(item))}. Seen by OmenWatch ${fmtFull(item.fetched_at)}.`;
 }
 
-// Card time: when it was published, plus when Pantomath saw it if that
+// Card time: when it was published, plus when OmenWatch saw it if that
 // was much later — lists are still ordered by when items arrived, and a
 // newly added source's backlog would otherwise look out of order.
 function itemTimeLabel(item) {

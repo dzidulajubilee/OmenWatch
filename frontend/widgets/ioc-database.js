@@ -77,7 +77,7 @@ async function loadIocDatabase() {
   try {
     [summaryRes, listRes] = await Promise.all([fetch('/api/ioc/summary'), fetch('/api/ioc/indicators?' + params)]);
   } catch (e) {
-    showIocdbError("Pantomath can't be reached right now. It will try again in 30 seconds.");
+    showIocdbError("OmenWatch can't be reached right now. It will try again in 30 seconds.");
     return;
   }
   if (!summaryRes.ok || !listRes.ok) {
@@ -547,7 +547,7 @@ document.getElementById('iocPromoteBtn').onclick = () => {
 
 let iocFeeds = [];
 let iocFeedEditing = null;
-let iocReaders = [];      // built-in readers for well-known feeds (pantomath/ioc/readers.py)
+let iocReaders = [];      // built-in readers for well-known feeds (omenwatch/ioc/readers.py)
 const readerFor = format => iocReaders.find(r => r.name === format);
 
 function setReaders(readers) {
@@ -881,7 +881,7 @@ document.getElementById('iocBackupBtn').onclick = async () => {
   if (res.status === 401) { setSettingsToken(null); showAuthGate('login', () => {}); return; }
   if (!res.ok) { const b = await res.json().catch(() => ({})); showToast(b.detail || `IOC backup failed (HTTP ${res.status})`); return; }
   const blob = await res.blob();
-  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'pantomath-ioc-backup.db';
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'omenwatch-ioc-backup.db';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
@@ -900,7 +900,7 @@ document.getElementById('siemKeyCreateBtn').addEventListener('click', async () =
   box.hidden = false;
   box.innerHTML = `<strong>SIEM key for ${escapeHtml(label)}</strong><code>${escapeHtml(body.key)}</code>
     <button type="button" class="btn btn-sm" id="siemKeyCopy">Copy key</button>
-    <span class="muted"> Copy it now: Pantomath keeps only a fingerprint and can't show it again. Send it as <code>Authorization: Bearer …</code> to <code>${escapeHtml(location.origin)}/api/v1/lookup</code>.</span>`;
+    <span class="muted"> Copy it now: OmenWatch keeps only a fingerprint and can't show it again. Send it as <code>Authorization: Bearer …</code> to <code>${escapeHtml(location.origin)}/api/v1/lookup</code>.</span>`;
   document.getElementById('siemKeyCopy').onclick = () => copyText(body.key, 'the SIEM key');
   loadSecuritySettings();
 });

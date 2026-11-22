@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from pantomath.feeds.article_fetcher import fetch_article_text_sync, html_to_text
+from omenwatch.feeds.article_fetcher import fetch_article_text_sync, html_to_text
 
 
 def test_html_to_text_strips_tags():
@@ -39,7 +39,7 @@ def test_fetch_article_text_via_file_url():
 
 
 def test_fetch_article_text_returns_empty_on_missing_file():
-    text = fetch_article_text_sync("file:///tmp/definitely-does-not-exist-pantomath-test.html")
+    text = fetch_article_text_sync("file:///tmp/definitely-does-not-exist-omenwatch-test.html")
     assert text == ""
 
 

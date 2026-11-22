@@ -1,7 +1,7 @@
 import pytest
 
-from pantomath.database.sqlite import get_db
-from pantomath.intelligence.reprocessor import reprocess_items
+from omenwatch.database.sqlite import get_db
+from omenwatch.intelligence.reprocessor import reprocess_items
 
 
 @pytest.fixture(autouse=True)
@@ -11,7 +11,7 @@ async def _clean(fresh_db):
 
 async def _insert_legacy_source_and_item(db, item_id="legacy-1", title=None, summary=None):
     """
-    Simulates an item stored by an OLDER version of Pantomath, before
+    Simulates an item stored by an OLDER version of OmenWatch, before
     tagging/IOC extraction existed — empty vendors/actors/cves/etc, even
     though the title/summary clearly contain detectable content. This is
     the exact real-world scenario reprocessing exists to fix.
@@ -103,7 +103,7 @@ async def test_reprocess_batches_correctly_across_a_batch_boundary():
     more rows than one batch holds and checking both the returned count
     and that every single row actually got backfilled.
     """
-    from pantomath.intelligence.reprocessor import BATCH_SIZE
+    from omenwatch.intelligence.reprocessor import BATCH_SIZE
 
     db = await get_db()
     await db.execute("INSERT INTO sources (id, name, url, category) VALUES ('src-legacy', 'Legacy Source', 'http://x.com/feed', 'news')")

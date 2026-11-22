@@ -1,7 +1,7 @@
 """
 0.8.1: first-run and recovery. The first-run screen needs the one-time
 setup code from the server; a lost Settings password can be reset with the
-recovery code on the sign-in page, or on the server with pantomath-admin.
+recovery code on the sign-in page, or on the server with omenwatch-admin.
 """
 import os
 import stat
@@ -9,17 +9,17 @@ import stat
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath import cli
-from pantomath.app import app
-from pantomath.auth import setup_code, sign_in
-from pantomath.database.sqlite import get_db
+from omenwatch import cli
+from omenwatch.app import app
+from omenwatch.auth import setup_code, sign_in
+from omenwatch.database.sqlite import get_db
 
 PW = "settings-pass-123"
 
 
 @pytest.fixture(autouse=True)
 async def signed_out(fresh_db, monkeypatch):
-    monkeypatch.delenv("PANTOMATH_OPEN_DASHBOARD", raising=False)
+    monkeypatch.delenv("OMENWATCH_OPEN_DASHBOARD", raising=False)
     yield
 
 

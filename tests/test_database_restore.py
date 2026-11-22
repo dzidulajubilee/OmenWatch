@@ -16,9 +16,9 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
-from pantomath.database.models import SCHEMA
-from pantomath.database.sqlite import DB_PATH, get_db
+from omenwatch.app import app
+from omenwatch.database.models import SCHEMA
+from omenwatch.database.sqlite import DB_PATH, get_db
 
 client = TestClient(app)
 
@@ -32,7 +32,7 @@ async def _clean(fresh_db):
 
 
 def _build_valid_replacement_db(tmp_path, source_id="replacement-src", item_id="replacement-item"):
-    """Builds a standalone, schema-valid Pantomath .db file with one distinctive item, to upload as a restore."""
+    """Builds a standalone, schema-valid OmenWatch .db file with one distinctive item, to upload as a restore."""
     path = tmp_path / "replacement.db"
     conn = sqlite3.connect(str(path))
     conn.executescript(SCHEMA)
@@ -78,7 +78,7 @@ async def test_restore_rejects_a_non_sqlite_file_and_leaves_live_db_untouched():
 async def test_restore_rejects_a_valid_sqlite_file_missing_required_tables():
     await _seed_live_db_with_marker_item()
 
-    # A real, valid SQLite file — just not a Pantomath one. Built on disk
+    # A real, valid SQLite file — just not a OmenWatch one. Built on disk
     # (not :memory:) since the endpoint validates the actual file header,
     # not just table names.
     import os as _os
@@ -139,7 +139,7 @@ async def test_restore_successfully_swaps_live_data_and_creates_a_recoverable_sa
 
 
 async def test_restore_enforces_an_upload_size_cap(tmp_path, monkeypatch):
-    import pantomath.database.restore as restore_module
+    import omenwatch.database.restore as restore_module
     monkeypatch.setattr(restore_module, "MAX_UPLOAD_BYTES", 10)  # tiny cap so the test doesn't need a huge file
 
     oversized = b"SQLite format 3\x00" + b"x" * 100  # starts with a valid-looking header but exceeds the cap
@@ -149,7 +149,7 @@ async def test_restore_enforces_an_upload_size_cap(tmp_path, monkeypatch):
 
 
 async def test_restore_leaves_no_dangling_temp_files_after_a_rejection(tmp_path):
-    from pantomath.database.restore import _db_dir
+    from omenwatch.database.restore import _db_dir
 
     before = set(_db_dir().glob(".restore-upload-*.tmp"))
     resp = client.post("/api/restore", files={"file": ("bad.db", b"not sqlite", "application/octet-stream")})
@@ -160,7 +160,7 @@ async def test_restore_leaves_no_dangling_temp_files_after_a_rejection(tmp_path)
 
 async def test_restore_rejects_upload_when_insufficient_disk_space(monkeypatch):
     import shutil as _shutil
-    import pantomath.database.restore as restore_module
+    import omenwatch.database.restore as restore_module
 
     fake_usage = _shutil.disk_usage(".")._replace(free=1024)  # 1KB free — nowhere near enough
     monkeypatch.setattr(restore_module.shutil, "disk_usage", lambda path: fake_usage)
@@ -172,9 +172,9 @@ async def test_restore_rejects_upload_when_insufficient_disk_space(monkeypatch):
 
 async def test_restore_of_an_old_schema_backup_is_migrated_forward_to_current_schema(tmp_path):
     """
-    Real reported issue: a backup taken on an older Pantomath version can
+    Real reported issue: a backup taken on an older OmenWatch version can
     predate a column added by a later migration (see MIGRATIONS in
-    pantomath/database/models.py). validate_sqlite_backup() only requires
+    omenwatch/database/models.py). validate_sqlite_backup() only requires
     the core tables to exist, not every column — restoring such a backup
     verbatim used to leave the *running* process serving a database
     missing columns its own queries expect, breaking until someone
@@ -269,7 +269,7 @@ async def test_restore_endpoint_wiring_reapplies_schema_and_migrations():
     """
     import inspect
 
-    from pantomath.api import routes
+    from omenwatch.api import routes
 
     source = inspect.getsource(routes.restore_database_endpoint)
     assert "init_db()" in source, (
@@ -286,7 +286,7 @@ async def test_restore_endpoint_wiring_reapplies_schema_and_migrations():
     owning process while it exists, regardless of the process umask.
     """
     import stat
-    from pantomath.database.restore import save_upload_to_temp
+    from omenwatch.database.restore import save_upload_to_temp
 
     class FakeUploadFile:
         def __init__(self, data):

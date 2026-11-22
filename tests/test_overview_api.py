@@ -12,8 +12,8 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.app import app
-from pantomath.database.sqlite import get_db
+from omenwatch.app import app
+from omenwatch.database.sqlite import get_db
 
 client = TestClient(app)
 HOUR = 3600
@@ -99,7 +99,7 @@ def test_hours_is_clamped():
     assert _overview(hours=999999)["hours"] == 24 * 90
 
 
-def test_new_since_counts_by_when_pantomath_stored_items():
+def test_new_since_counts_by_when_omenwatch_stored_items():
     now = time.time()
     assert _overview(since=now - 2 * HOUR)["new_since"] == 2  # both fetched an hour ago
     assert _overview(since=now + 999)["new_since"] == 4       # future `since` falls back to 24 h

@@ -9,8 +9,8 @@
 ## Layout
 
 ```
-Pantomath/
-├── pantomath/                 # the installable Python package
+OmenWatch/
+├── omenwatch/                 # the installable Python package
 │   ├── connectors/
 │   │   ├── base.py        # BaseConnector — the extensibility contract
 │   │   ├── rss.py          # RSSConnector — the only implementation in v1.0
@@ -38,7 +38,7 @@ Pantomath/
 │
 ├── frontend/
 │   ├── pages/dashboard.html   # page shell: sidebar nav + all views + modal
-│   ├── themes/pantomath.css   # design tokens + all styling
+│   ├── themes/omenwatch.css   # design tokens + all styling
 │   ├── widgets/
 │   │   ├── app.js             # router, view loaders, sources/settings, WebSocket
 │   │   ├── feed-list.js       # reusable item-card renderer (save/open/tags)
@@ -60,17 +60,17 @@ Pantomath/
 
 ## Data flow
 
-1. `pantomath/feeds/scheduler.py` wakes every 20s, checks each enabled source's
+1. `omenwatch/feeds/scheduler.py` wakes every 20s, checks each enabled source's
    `interval_seconds` against its `last_fetched` timestamp.
-2. Due sources get handed to `pantomath/connectors/registry.get_connector()`,
+2. Due sources get handed to `omenwatch/connectors/registry.get_connector()`,
    which looks up the class for that source's `connector_type` and calls
    its `update()` — the fetch → normalize → validate → store cycle defined
    by `BaseConnector`. The scheduler itself has no RSS-specific code.
-3. `RSSConnector.fetch()` calls `pantomath/feeds/rss.py` (urllib fetch with
+3. `RSSConnector.fetch()` calls `omenwatch/feeds/rss.py` (urllib fetch with
    timeouts, then `feedparser` as the parser, run in a thread pool since it's
    blocking — see "Feed fetching" below); `.normalize()` calls
-   `pantomath/feeds/parser.py` to shape entries into the common item dict;
-   `.store()` scores severity (`pantomath/intelligence/scoring.py`) and
+   `omenwatch/feeds/parser.py` to shape entries into the common item dict;
+   `.store()` scores severity (`omenwatch/intelligence/scoring.py`) and
    writes to SQLite.
 4. Newly-inserted items are broadcast to all connected browsers over
    `/ws`. The frontend prepends them with a slide-in animation.
@@ -80,7 +80,7 @@ Pantomath/
 
 ## Feed fetching: timeouts and honest status
 
-`pantomath/feeds/rss.py` downloads the feed itself with urllib and only
+`omenwatch/feeds/rss.py` downloads the feed itself with urllib and only
 then hands the bytes to feedparser as a parser. Handing the URL straight
 to `feedparser.parse()` (the original approach) caused two real problems:
 
@@ -129,7 +129,7 @@ unchanged, so nothing depending on it breaks). Three rules matter:
   shifted them by the server's UTC offset).
 - **"New since you last looked" follows the fetch time**, because it is
   about what the viewer hasn't seen. The browser records when it last
-  left Pantomath (`localStorage`) and passes it as `since`.
+  left OmenWatch (`localStorage`) and passes it as `since`.
 - **No feed URLs in the response.** The endpoint is public like the rest
   of the dashboard, and a feed URL can carry an API key, so source health
   exposes only name, category, state and the last error message.
@@ -168,7 +168,7 @@ shape (triangle high, diamond medium, ring low), never colour alone.
   date, so a feed's batch reads newest-first instead of in the order the
   publisher happened to list it.
 - **Read state** is per browser (`localStorage`): an item is new if it
-  arrived after the later of "last left Pantomath" and "Mark all as read".
+  arrived after the later of "last left OmenWatch" and "Mark all as read".
 
 ## Shared feed pages and the Indicators calendar (0.6.1)
 
@@ -222,7 +222,7 @@ shape (triangle high, diamond medium, ring low), never colour alone.
   `admin` (signed in with the Settings password, which also returns a
   Settings token), `api` (keys). The Settings password check used here
   doesn't count toward the Settings lockout; sign-in has its own per-address
-  limit. `PANTOMATH_OPEN_DASHBOARD=1` disables sign-in (reverse-proxy SSO,
+  limit. `OMENWATCH_OPEN_DASHBOARD=1` disables sign-in (reverse-proxy SSO,
   and the test suite, where `tests/test_sign_in.py` turns it back on).
 - **Priority** (`intelligence/priority.py`). `items.severity` now holds the
   priority (critical/high/medium/low) so every existing filter, count,
@@ -243,7 +243,7 @@ shape (triangle high, diamond medium, ring low), never colour alone.
   created the Settings password ("trust on first use"). Now
   `auth/setup_code.py` creates a one-time 12-character code (about 59 bits)
   when the install has no Settings password: at install time
-  (`postinstall.sh` runs `pantomath-admin setup-code --bare` as the service
+  (`postinstall.sh` runs `omenwatch-admin setup-code --bare` as the service
   user before starting the service, and prints it) or on startup. Only its
   PBKDF2 hash is in the database; the plain code is in `setup-code` next to
   the database (mode 0600), never in the logs. `/api/auth/setup` and the
@@ -267,12 +267,12 @@ A second pipeline in the same service, next to the news one rather than
 inside it. The news side (RSS sources, items, the Indicators tab,
 `/api/iocs`, the existing backup and API keys) doesn't change.
 
-- **Its own file.** `ioc.db` next to `pantomath.db`, opened with
+- **Its own file.** `ioc.db` next to `omenwatch.db`, opened with
   `ioc/db.get_ioc_db()` (same driver and pragmas). SQLite allows one writer
   per file, so a 200,000-line feed import only holds `ioc.db`'s lock and RSS
   polling, sign-ins and settings saves never wait on it. If it can't be opened,
   `init_ioc_db()` failing at startup is logged, and every IOC route returns 503
-  with the reason through `ioc_db()`; the rest of Pantomath runs as before.
+  with the reason through `ioc_db()`; the rest of OmenWatch runs as before.
   The existing backup stays small: most of `ioc.db` can be downloaded again.
 - **One row per value.** `indicators` has `UNIQUE (type, value)`, and
   `sightings` (one per source reporting it) `UNIQUE (indicator_id, source)`,
@@ -322,7 +322,7 @@ inside it. The news side (RSS sources, items, the Indicators tab,
   `promoted: true`: its own source (`promoted`), treated like an analyst's
   entry (it may overwrite context fields and sets the confidence).
 - **"In the news"** (`/api/ioc/indicators/{id}/mentions`) is the only read
-  of `pantomath.db` from the IOC side: the extracted-value columns for IPs,
+  of `omenwatch.db` from the IOC side: the extracted-value columns for IPs,
   hashes and emails, a LIKE on titles and summaries for the rest.
 - **SIEM hit counts** (`ioc/hits.py`): `/api/v1` lookups that match are added
   up in memory and written by the IOC scheduler every 30 seconds into
@@ -339,20 +339,20 @@ inside it. The news side (RSS sources, items, the Indicators tab,
 
 ## Extensibility: the connector contract
 
-`pantomath/connectors/base.py` defines `BaseConnector`, an abstract class
+`omenwatch/connectors/base.py` defines `BaseConnector`, an abstract class
 with five methods: `fetch()`, `normalize()`, `validate()`, `store()`, and
 `update()` (which chains the first four). `RSSConnector` is the only
 implementation shipped in v1.0.
 
 Retrieval, parsing/normalization, and storage are deliberately separate
 steps — not just separate function calls, but separate *files*
-(`pantomath/feeds/rss.py` vs `pantomath/feeds/parser.py` vs the `store()`
+(`omenwatch/feeds/rss.py` vs `omenwatch/feeds/parser.py` vs the `store()`
 method) — so each can change independently. A future connector for a
 different kind of source (a TAXII feed, a vendor API, anything) is added
 by:
 
-1. Implementing `BaseConnector` in a new `pantomath/connectors/<name>.py`.
-2. Adding one line to `CONNECTOR_REGISTRY` in `pantomath/connectors/registry.py`.
+1. Implementing `BaseConnector` in a new `omenwatch/connectors/<name>.py`.
+2. Adding one line to `CONNECTOR_REGISTRY` in `omenwatch/connectors/registry.py`.
 
 No changes to the scheduler, the database schema (the `sources` table
 already has a `connector_type` column, defaulting to `'rss'`), or the API
@@ -390,13 +390,13 @@ package) without affecting normal installs.
 Nothing is ever deleted automatically by default. `settings.retention_days`
 (default `0` = forever) is the only thing that prunes old items, and it's
 opt-in from Settings — the scheduler checks it at most once an hour
-(`pantomath/feeds/scheduler.py: _maybe_run_retention`) and just does
+(`omenwatch/feeds/scheduler.py: _maybe_run_retention`) and just does
 nothing if it's `0`.
 
 Being direct about a real constraint here: RSS is not an archive format.
-Most feeds only ever expose their most recent 10–50 items — Pantomath
+Most feeds only ever expose their most recent 10–50 items — OmenWatch
 can't retroactively pull a year of posts a source never published via
-RSS. What "keep forever" actually buys you is that everything Pantomath
+RSS. What "keep forever" actually buys you is that everything OmenWatch
 *has* seen stays on disk indefinitely, so a year of continuous running
 gives you a genuinely browsable year of history.
 
@@ -411,40 +411,40 @@ that dots any day with stored items; clicking a day sets `date_from` and
 
 ## Packaging & collaboration
 
-`pantomath/` is a real installable Python package now (PEP 621, via
+`omenwatch/` is a real installable Python package now (PEP 621, via
 `pyproject.toml`) — `pip install -e .` gets you an editable install,
-`from pantomath.intelligence.scoring import score_severity` works from
-anywhere, and `pantomath.__version__` reflects whatever's actually
+`from omenwatch.intelligence.scoring import score_severity` works from
+anywhere, and `omenwatch.__version__` reflects whatever's actually
 installed. Version lives in exactly one place: `pyproject.toml`'s
 `[project] version`. `build.sh` reads it from there automatically, so
 there's nothing else to bump on a release.
 
 Each subpackage's `__init__.py` re-exports its public API (e.g.
-`from pantomath.connectors import BaseConnector, RSSConnector` instead of
-reaching into `pantomath.connectors.rss` directly) — except
-`pantomath/feeds/__init__.py`, which deliberately does NOT re-export
+`from omenwatch.connectors import BaseConnector, RSSConnector` instead of
+reaching into `omenwatch.connectors.rss` directly) — except
+`omenwatch/feeds/__init__.py`, which deliberately does NOT re-export
 `Scheduler`: doing so would create a real circular import
 (`feeds → connectors → feeds.parser → feeds/__init__ again`), caught by
 the test suite the first time it was tried. Import `Scheduler` directly
-from `pantomath.feeds.scheduler` instead — that one line of nuance is
+from `omenwatch.feeds.scheduler` instead — that one line of nuance is
 called out in the module's own docstring so it isn't rediscovered the
 hard way twice.
 
-The top-level `pantomath/__init__.py` deliberately does NOT import
-`pantomath.app` — doing so would make every `import pantomath.<anything>`
+The top-level `omenwatch/__init__.py` deliberately does NOT import
+`omenwatch.app` — doing so would make every `import omenwatch.<anything>`
 eagerly construct the FastAPI app (mounting static files, registering
 routes) as a side effect, which is unwanted for lightweight uses like
 importing a scoring function in a script or test.
 
 `tests/conftest.py` is the one file that has to run before anything else:
-several modules read `PANTOMATH_DB`/`PANTOMATH_ICON_CACHE` as module-level
+several modules read `OMENWATCH_DB`/`OMENWATCH_ICON_CACHE` as module-level
 constants at import time, so the test env vars are set at conftest
 *module-load* time, not inside a fixture — pytest guarantees conftest.py
 loads before any test module it applies to.
 
 ## IOC extraction
 
-`pantomath/intelligence/ioc_extraction.py` does the same kind of
+`omenwatch/intelligence/ioc_extraction.py` does the same kind of
 rule-based extraction as tagging.py, for a different purpose: CVEs, IPv4
 addresses, MD5/SHA1/SHA256 hashes, and email addresses, via regex against
 each item's title+summary at store time. A few deliberate details worth
@@ -478,8 +478,8 @@ table below it.
 table — so every column added after the very first release (`icon_url`,
 `connector_type`, `severity`, `vendors`, `actors`, `bookmarked`, and now
 the four IOC columns) needed an explicit migration path, which didn't
-exist until this pass. `pantomath/database/models.py: MIGRATIONS` is the
-list of `(table, column, definition)` tuples; `pantomath/database/sqlite.py:
+exist until this pass. `omenwatch/database/models.py: MIGRATIONS` is the
+list of `(table, column, definition)` tuples; `omenwatch/database/sqlite.py:
 _run_migrations` checks `PRAGMA table_info` and only `ALTER TABLE ADD
 COLUMN`s what's actually missing. Runs on every startup, safe to run
 against an up-to-date database (no-op) or a genuinely old one (brings it
@@ -492,7 +492,7 @@ a change to `SCHEMA`.
 
 RSS summaries are short teasers — real IOCs (C2 IPs, hashes, full CVE
 lists) usually live in the article body on the publisher's site, not in
-the feed's excerpt. `pantomath/feeds/article_fetcher.py` fetches the full
+the feed's excerpt. `omenwatch/feeds/article_fetcher.py` fetches the full
 page for each genuinely-new item and strips it to plain text (a small
 `HTMLParser` subclass, skipping `<script>`/`<style>`/`<nav>`/`<footer>`
 content — no HTML-parsing library dependency). That richer text feeds
@@ -501,7 +501,7 @@ summary stays the original RSS teaser.
 
 A few things worth knowing:
 - **Toggleable in Settings** (`deep_extraction`, on by default) — since
-  it means Pantomath fetches every new article's page, which is slower
+  it means OmenWatch fetches every new article's page, which is slower
   and means more outbound requests than summary-only extraction.
 - **Filters to genuinely-new items before fetching anything.**
   feedparser re-returns the same ~50 recent entries on every poll
@@ -523,7 +523,7 @@ when it's off — see `tests/test_rss_connector.py`.
 
 ## Webhook alerting
 
-`pantomath/alerts/` — `matcher.py` decides whether a new item matches a
+`omenwatch/alerts/` — `matcher.py` decides whether a new item matches a
 webhook's conditions (keyword, specific source, minimum severity; any
 unset condition means "any", and a rule with everything unset matches
 every new item), `dispatcher.py` sends the actual HTTP POST (`urllib` in
@@ -534,7 +534,7 @@ delivery see identical data.
 
 Payload has a top-level `"text"` summary (so Slack/Discord/Mattermost-style
 "post a message" webhooks show something reasonable with zero
-configuration) plus a structured `"pantomath"` object for custom
+configuration) plus a structured `"omenwatch"` object for custom
 consumers. Full native formatting for a specific service (Slack blocks,
 Discord embeds) would need a small transform in front of this — out of
 scope here, noted as an honest limitation rather than half-implemented.
@@ -553,7 +553,7 @@ bundled under `frontend/assets/fonts/` and `frontend/assets/icons/nav/` —
 fetched once from their open-source GitHub repos, not loaded from Google
 Fonts or any icon CDN. This matters for a self-hosted security tool:
 works fully offline/air-gapped, and doesn't leak "someone opened
-Pantomath" to a third party on every page load. Both fonts are SIL OFL
+OmenWatch" to a third party on every page load. Both fonts are SIL OFL
 1.1 licensed (license files included alongside them); icons are Lucide
 (ISC licensed, license included). Space Grotesk ships as a single
 variable-weight WOFF2 (one file covers the whole 300–700 weight range
@@ -593,14 +593,14 @@ categorized source with a CVE-bearing item is invisible to the old
 ## Reprocessing: backfilling data for items stored before a feature existed
 
 A schema migration adding a column (`MIGRATIONS` in
-`pantomath/database/models.py`) only gives it an empty default — it never
+`omenwatch/database/models.py`) only gives it an empty default — it never
 retroactively computes real values for rows that predate the feature. An
 install running since before IOC extraction or tagging shipped will have
 items with genuinely empty `vendors`/`actors`/`cves`/etc., not because
 nothing was there to find, but because detection didn't exist yet when
 they were stored.
 
-`pantomath/intelligence/reprocessor.py: reprocess_items()` re-runs
+`omenwatch/intelligence/reprocessor.py: reprocess_items()` re-runs
 severity scoring, tagging, and IOC extraction against items already on
 disk — no RSS re-fetch, using the exact same extraction logic (and
 optionally the same deep-extraction full-article fetch) that new items
@@ -622,9 +622,9 @@ interval, using the same fetch → normalize → validate → store pipeline
 
 `GET /` no longer serves `dashboard.html` as a static file — it reads the
 file, substitutes a `{{CACHEBUST}}` token in every CSS/JS reference with
-the installed package version (`pantomath.__version__`), and returns it
-as a rendered response (`pantomath/app.py: dashboard()`). Without this, a
-browser that cached `pantomath.css` or `app.js` from a previous release
+the installed package version (`omenwatch.__version__`), and returns it
+as a rendered response (`omenwatch/app.py: dashboard()`). Without this, a
+browser that cached `omenwatch.css` or `app.js` from a previous release
 can keep serving that stale copy indefinitely after an upgrade, since the
 URL never changes — there's nothing to tell the browser a newer version
 exists. This was very likely the actual explanation for a real report of
@@ -639,7 +639,7 @@ prerequisite for accurate page counts — a "page 3 of 708" number is
 meaningless if the actual displayed content is then further filtered
 client-side afterward. `GET /api/items/count` mirrors every filter `GET
 /api/items` accepts (both go through the same
-`_build_item_conditions()` in `pantomath/api/routes.py`, so they can
+`_build_item_conditions()` in `omenwatch/api/routes.py`, so they can
 never silently drift out of sync with each other) and returns a total,
 which the frontend uses to compute page count. `severity` now accepts a
 comma-separated list (`"high,medium"`) for the multi-select toggle,
@@ -741,7 +741,7 @@ different pre-filtered `/api/items` query — one card renderer, many views.
 
 ## Tagging (vendors & threat actors)
 
-`pantomath/intelligence/tagging.py` does rule-based keyword/pattern
+`omenwatch/intelligence/tagging.py` does rule-based keyword/pattern
 matching against curated vendor and threat-actor name lists (plus a regex
 for APT/UNC/FIN/TA-style actor codenames). Names match as whole words,
 not substrings — substring matching (the original approach) tagged
@@ -764,9 +764,9 @@ later without changing the tagging logic itself.
 
 Each source has an `icon_url` (auto-derived from its domain, or a custom
 URL you supply). The browser never hits that URL directly — it requests
-`GET /api/sources/{id}/icon`, and `pantomath/intelligence/enrichment.py`
+`GET /api/sources/{id}/icon`, and `omenwatch/intelligence/enrichment.py`
 fetches it **exactly once**, caches the bytes + content-type under
-`PANTOMATH_ICON_CACHE` (defaults to an `icons/` folder next to the
+`OMENWATCH_ICON_CACHE` (defaults to an `icons/` folder next to the
 database), and every request after that is a disk read. A failed fetch is
 negative-cached for an hour too, so a dead icon host doesn't get hit on
 every page load — it just 404s quickly, and the frontend's `onerror`
@@ -776,7 +776,7 @@ deletes its cached icon file.
 ## Theme (light/dark)
 
 One `data-theme` attribute on `<html>`, one CSS block
-(`[data-theme="light"] { ... }` in `themes/pantomath.css`) overriding the
+(`[data-theme="light"] { ... }` in `themes/omenwatch.css`) overriding the
 same custom properties the dark theme sets on `:root` — every component
 that already uses `var(--x)` adapts automatically, no per-component theme
 logic needed. `frontend/widgets/theme.js` handles the two toggle controls
@@ -789,7 +789,7 @@ surface colors.
 ## Desktop notifications
 
 Implemented with the standard browser `Notification` API
-(`frontend/widgets/notifications.js`) — Pantomath is a locally-hosted web
+(`frontend/widgets/notifications.js`) — OmenWatch is a locally-hosted web
 app, not a native Tauri/Electron build, so this is the correct mechanism
 for this architecture, and it does produce real OS-level notification
 popups. The honest limitation, stated directly in the Settings page: it

@@ -3,13 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pantomath</title>
-<link rel="icon" href="/static/assets/icons/pantomath.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/themes/pantomath.css?v={{CACHEBUST}}">
+<title>OmenWatch</title>
+<link rel="icon" href="/static/assets/icons/omenwatch.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/themes/omenwatch.css?v={{CACHEBUST}}">
 <script>
   // Applied before first paint so there's no flash of the wrong theme.
   (function(){
-    var saved = localStorage.getItem('pantomath-theme') || 'dark';
+    // OmenWatch was called Pantomath before 2.0: keep each browser's settings
+    // (theme, read items, density...) under the new names, once.
+    try {
+      [window.localStorage, window.sessionStorage].forEach(function(store){
+        for (var i = store.length - 1; i >= 0; i--) {
+          var key = store.key(i);
+          if (key && key.indexOf('pantomath') === 0) {
+            var renamed = 'omenwatch' + key.slice(9);
+            if (store.getItem(renamed) === null) store.setItem(renamed, store.getItem(key));
+            store.removeItem(key);
+          }
+        }
+      });
+    } catch (e) {}
+    var saved = localStorage.getItem('omenwatch-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
   })();
 </script>
@@ -22,7 +36,7 @@
       <div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div>
       <div class="radar-sweep"></div>
       <span class="blip b1"></span><span class="blip b2"></span><span class="blip b3"></span><span class="blip b4"></span>
-      <img class="radar-core" src="/static/assets/icons/pantomath.svg?v={{CACHEBUST}}" alt="">
+      <img class="radar-core" src="/static/assets/icons/omenwatch.svg?v={{CACHEBUST}}" alt="">
     </div>
     <div class="hero-copy">
       <p class="hero-kicker">Self-hosted threat intelligence</p>
@@ -36,7 +50,7 @@
   </section>
   <main class="signin-main">
     <div class="signin-card" id="signinCard">
-      <div class="signin-brand"><img src="/static/assets/icons/pantomath.svg?v={{CACHEBUST}}" alt="" width="34" height="34"><span>PANTOMATH</span></div>
+      <div class="signin-brand"><img src="/static/assets/icons/omenwatch.svg?v={{CACHEBUST}}" alt="" width="34" height="34"><span>OMENWATCH</span></div>
       <form class="signin-form" id="signinForm" novalidate>
         <h1 class="signin-title" id="signinTitle">Sign in</h1>
         <p class="signin-sub" id="signinSub">Use the team password. Administrators can use the Settings password.</p>
@@ -74,16 +88,16 @@
         <div class="recovery-code" id="signinRecoveryCode"></div>
         <button type="button" class="btn" id="signinCopyCode">Copy code</button>
         <label class="signin-remember"><input type="checkbox" id="signinSaved"><span>I've stored the code somewhere safe</span></label>
-        <button type="button" class="signin-submit" id="signinContinue" disabled>Continue to Pantomath</button>
+        <button type="button" class="signin-submit" id="signinContinue" disabled>Continue to OmenWatch</button>
       </div>
       <details class="signin-help">
         <summary>Can't sign in?</summary>
-        <p>Ask whoever manages Pantomath for the team password.</p>
-        <p>Lost the Settings password? Use the recovery code you saved at setup ("Forgot the Settings password?" above), or on the server run <code>sudo pantomath-admin reset-settings-password</code> to set a new one.</p>
-        <p>Setting Pantomath up for the first time? The setup code was printed at the end of the installation; <code>sudo pantomath-admin setup-code</code> shows it again.</p>
+        <p>Ask whoever manages OmenWatch for the team password.</p>
+        <p>Lost the Settings password? Use the recovery code you saved at setup ("Forgot the Settings password?" above), or on the server run <code>sudo omenwatch-admin reset-settings-password</code> to set a new one.</p>
+        <p>Setting OmenWatch up for the first time? The setup code was printed at the end of the installation; <code>sudo omenwatch-admin setup-code</code> shows it again.</p>
       </details>
     </div>
-    <p class="signin-foot">Pantomath {{CACHEBUST}}</p>
+    <p class="signin-foot">OmenWatch {{CACHEBUST}}</p>
   </main>
 </div>
 
@@ -91,9 +105,9 @@
   <button type="button" class="menu-btn" id="navToggle" aria-label="Open menu" aria-controls="navRail" aria-expanded="false">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
-  <a class="brand" href="#dashboard" data-goto="dashboard" aria-label="Pantomath dashboard">
+  <a class="brand" href="#dashboard" data-goto="dashboard" aria-label="OmenWatch dashboard">
     <div class="brand-mark"><span></span></div>
-    <h1>PANTOMATH</h1>
+    <h1>OMENWATCH</h1>
   </a>
   <form class="global-search" id="globalSearchForm" role="search">
     <label for="globalSearch" class="visually-hidden">Search intelligence</label>
@@ -245,7 +259,7 @@
 
     <section class="view" id="view-live-feed">
       <div class="view-head">
-        <div><h2>Live feed</h2><div class="desc" id="liveSubtitle">Everything Pantomath has collected, newest arrivals first.</div></div>
+        <div><h2>Live feed</h2><div class="desc" id="liveSubtitle">Everything OmenWatch has collected, newest arrivals first.</div></div>
         <div class="view-actions">
           <div class="seg density-seg" role="group" aria-label="Row density" id="liveDensity">
             <button type="button" data-density="comfortable" aria-pressed="false">Comfortable</button>
@@ -571,7 +585,7 @@
     <!-- SAVED -->
     <section class="view" id="view-saved">
       <div class="view-head">
-        <div><h2>Saved</h2><div class="desc">Items starred with Save. Saves are shared by everyone using this Pantomath.</div></div>
+        <div><h2>Saved</h2><div class="desc">Items starred with Save. Saves are shared by everyone using this OmenWatch.</div></div>
         <div class="view-actions">
           <div class="seg density-seg" role="group" aria-label="Row density">
             <button type="button" data-density="comfortable" aria-pressed="false">Comfortable</button>
@@ -685,7 +699,7 @@
         </nav>
         <div class="settings-main">
           <div class="settings-card active" id="set-collection">
-            <div class="settings-card-head"><h3>Collection</h3><p>How Pantomath fetches and reads your feeds.</p></div>
+            <div class="settings-card-head"><h3>Collection</h3><p>How OmenWatch fetches and reads your feeds.</p></div>
             <div class="set-row">
               <div class="set-text">
                 <label class="set-label" for="defaultInterval">Default check interval for new sources</label>
@@ -722,7 +736,7 @@
               <div class="stack-suggest" id="stackSuggest"></div>
             </div>
             <div class="stack-list" id="stackList"></div>
-            <p class="set-hint stack-privacy">The list itself stays in Settings, but anyone who can open the dashboard sees which items are marked and why. Keep Pantomath on a network only your team can reach.</p>
+            <p class="set-hint stack-privacy">The list itself stays in Settings, but anyone who can open the dashboard sees which items are marked and why. Keep OmenWatch on a network only your team can reach.</p>
           </div>
 
           <div class="settings-card" id="set-kev">
@@ -757,7 +771,7 @@
             <div class="set-row set-row-top">
               <div class="set-text">
                 <span class="set-label">Feeds</span>
-                <p class="set-hint">Each feed is downloaded on its own timer, separately from your RSS sources. Pantomath asks the server whether the list changed and skips it if not.</p>
+                <p class="set-hint">Each feed is downloaded on its own timer, separately from your RSS sources. OmenWatch asks the server whether the list changed and skips it if not.</p>
               </div>
               <div class="set-control"><button type="button" class="btn btn-primary" id="iocFeedAddBtn">+ Add IOC feed</button></div>
             </div>
@@ -807,7 +821,7 @@
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label" id="notifLabel">Desktop notifications</span>
-                <p class="set-hint">Your browser's own pop-ups. They only appear while a Pantomath tab is open.</p>
+                <p class="set-hint">Your browser's own pop-ups. They only appear while a OmenWatch tab is open.</p>
                 <p class="set-hint" id="notifPermissionHint">Browser permission: <span id="notifPermissionState">unknown</span>.</p>
               </div>
               <div class="set-control"><button type="button" class="toggle-switch" id="notifToggle" role="switch" aria-checked="false" aria-labelledby="notifLabel"></button></div>
@@ -842,7 +856,7 @@
           </div>
 
           <div class="settings-card" id="set-storage">
-            <div class="settings-card-head"><h3>Storage</h3><p>What Pantomath keeps, and for how long.</p></div>
+            <div class="settings-card-head"><h3>Storage</h3><p>What OmenWatch keeps, and for how long.</p></div>
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label" id="storedRangeLabel">Currently stored: —</span>
@@ -880,7 +894,7 @@
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label">Back up the database</span>
-                <p class="set-hint">Downloads the SQLite file (<code>/var/lib/pantomath/pantomath.db</code>) with every item, source, setting and webhook.</p>
+                <p class="set-hint">Downloads the SQLite file (<code>/var/lib/omenwatch/omenwatch.db</code>) with every item, source, setting and webhook.</p>
               </div>
               <div class="set-control"><button class="btn" id="backupBtn">Download backup</button></div>
             </div>
@@ -905,7 +919,7 @@
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label">Export sources</span>
-                <p class="set-hint">Your source list as JSON, to import on another Pantomath.</p>
+                <p class="set-hint">Your source list as JSON, to import on another OmenWatch.</p>
               </div>
               <div class="set-control"><button class="btn" id="settingsExportBtn">Export sources.json</button></div>
             </div>
@@ -923,11 +937,11 @@
           </div>
 
           <div class="settings-card" id="set-security">
-            <div class="settings-card-head"><h3>Security</h3><p>Who can see Pantomath, and who can change it.</p></div>
+            <div class="settings-card-head"><h3>Security</h3><p>Who can see OmenWatch, and who can change it.</p></div>
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label">Team password</span>
-                <p class="set-hint" id="teamPwHint">Lets people sign in to view Pantomath. It can't change settings.</p>
+                <p class="set-hint" id="teamPwHint">Lets people sign in to view OmenWatch. It can't change settings.</p>
               </div>
               <div class="set-control">
                 <button type="button" class="btn" id="teamPwRemove" hidden>Remove</button>
@@ -974,13 +988,13 @@
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label">Settings password</span>
-                <p class="set-hint">Changes settings and sources, and also signs people in. Forgot it? On the server, run <code>sudo pantomath-admin reset-settings-password</code>; the next person to open Pantomath then sets a new one.</p>
+                <p class="set-hint">Changes settings and sources, and also signs people in. Forgot it? On the server, run <code>sudo omenwatch-admin reset-settings-password</code>; the next person to open OmenWatch then sets a new one.</p>
               </div>
             </div>
             <div class="set-row">
               <div class="set-text">
                 <span class="set-label">HTTPS</span>
-                <p class="set-hint">Pantomath listens on port 7373 on every network interface. Passwords are sent in plain text over plain HTTP, so on anything but a trusted network run <code>sudo pantomath-admin setup-https</code> on the server to put nginx with HTTPS in front of it.</p>
+                <p class="set-hint">OmenWatch listens on port 7373 on every network interface. Passwords are sent in plain text over plain HTTP, so on anything but a trusted network run <code>sudo omenwatch-admin setup-https</code> on the server to put nginx with HTTPS in front of it.</p>
               </div>
             </div>
           </div>

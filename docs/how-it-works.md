@@ -1,6 +1,6 @@
-# How Pantomath works
+# How OmenWatch works
 
-The architecture, the collection pipeline, every rule Pantomath applies, the
+The architecture, the collection pipeline, every rule OmenWatch applies, the
 data model, the security model and the frontend: everything needed to
 understand, operate or change it. For using it see the
 [user guide](user-guide.md); for installing and running it see
@@ -24,14 +24,14 @@ that shaped them, are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).
 12. [The frontend](#12-the-frontend)
 13. [Packaging](#13-packaging)
 14. [Testing](#14-testing)
-15. [Extending Pantomath](#15-extending-pantomath)
+15. [Extending OmenWatch](#15-extending-omenwatch)
 16. [Limits and trade-offs](#16-limits-and-trade-offs)
 
 ---
 
 ## 1. The big picture
 
-Pantomath is one Python process (FastAPI on uvicorn) with one SQLite
+OmenWatch is one Python process (FastAPI on uvicorn) with one SQLite
 database and a browser frontend served by the same process. There are no
 other services, no build step for the frontend, and no required internet
 access.
@@ -44,7 +44,7 @@ flowchart LR
     K[CISA KEV catalog]
     W[Webhook receivers]
   end
-  subgraph Pantomath["Pantomath (one process)"]
+  subgraph OmenWatch["OmenWatch (one process)"]
     S[Scheduler<br/>every 20 s] --> C[Connector<br/>fetch, normalize, store]
     C --> AN[Analysis<br/>tags, indicators, Our stack,<br/>KEV marks, priority]
     AN --> DB[(SQLite)]
@@ -73,10 +73,10 @@ else through the HTTP API.
 ## 2. Code map
 
 ```
-pantomath/
+omenwatch/
   app.py                 FastAPI app: startup (database, setup code, scheduler), static files, the page shell
-  cli.py                 pantomath-admin: setup-code, reset-settings-password, sign-out-everyone, setup-https
-  https_setup.py         nginx + self-signed HTTPS in front of Pantomath
+  cli.py                 omenwatch-admin: setup-code, reset-settings-password, sign-out-everyone, setup-https
+  https_setup.py         nginx + self-signed HTTPS in front of OmenWatch
   api/routes.py          every HTTP endpoint, the sign-in gate, the WebSocket
   auth/
     sign_in.py           dashboard sign-in: team password, sessions, API keys, attempt limits
@@ -113,7 +113,7 @@ frontend/
   widgets/app.js         the application: router, views, lists, panels, settings, sign-in
   widgets/*.js           calendar, charts, notifications, pagination, theme, legacy card list
   components/icon.js     source icons
-  themes/pantomath.css   design tokens and all styles
+  themes/omenwatch.css   design tokens and all styles
   assets/                bundled fonts (IBM Plex Sans) and icons; nothing loads from a CDN
 config/feeds.json        optional starter sources for new installs (empty by default)
 installer/               Debian package scripts, systemd unit, bundled wheels
@@ -287,7 +287,7 @@ total, 30 MB.
 ## 6. Dates and counting
 
 **Two times per item:** `published` (from the feed) and `fetched_at` (when
-Pantomath stored it). Feeds publish backlogs and odd dates, so counting uses
+OmenWatch stored it). Feeds publish backlogs and odd dates, so counting uses
 an **effective published time**: the published time if it's present and not
 more than an hour after the item was fetched, otherwise the fetch time. In
 SQL:
@@ -299,8 +299,8 @@ CASE WHEN published > 0 AND published <= fetched_at + 3600 THEN published ELSE f
 | What | Counted by |
 |---|---|
 | Dashboard figures, Needs attention, Published per day, Analytics | effective published time |
-| New since you last looked, Items today (Sources), Indicators calendar, first/last seen | `fetched_at` (when Pantomath saw it) |
-| Live feed date filter | the date Pantomath stored the item |
+| New since you last looked, Items today (Sources), Indicators calendar, first/last seen | `fetched_at` (when OmenWatch saw it) |
+| Live feed date filter | the date OmenWatch stored the item |
 | List order | newest arrival first, by minute; within the same minute, newest published first |
 
 **Time zones.** Day boundaries ("today", calendar days, the analytics
@@ -309,7 +309,7 @@ browser are in the browser's time zone.
 
 **New since you last looked** combines three things:
 
-1. a time mark kept in the browser: when you last left Pantomath (a page
+1. a time mark kept in the browser: when you last left OmenWatch (a page
    hidden or closed, never the sign-in page), or when you pressed **Mark all
    as read**, whichever is later. A first visit uses the last 24 hours;
 2. the server's count of items stored after that mark;
@@ -389,7 +389,7 @@ data endpoint is protected without anyone having to remember it.
 has ended; the page then shows the sign-in screen instead of reconnecting.
 
 Errors are JSON `{"detail": "…"}` with meaningful status codes: 400 invalid
-input, 401 not signed in (with the header `X-Pantomath-Sign-In: required`)
+input, 401 not signed in (with the header `X-OmenWatch-Sign-In: required`)
 or wrong password or code, 404 not found, 409 conflict (for example already
 set up), 429 too many attempts. See [api.md](api.md).
 
@@ -406,7 +406,7 @@ compared in constant time. Sign-in cookies and API keys are 256-bit random
 tokens stored only as SHA-256 fingerprints; a fast hash is fine for random
 tokens of that size.
 
-**Sessions.** The cookie `pantomath_session` is HttpOnly, SameSite=Strict,
+**Sessions.** The cookie `omenwatch_session` is HttpOnly, SameSite=Strict,
 and Secure when the request came over HTTPS (directly or through nginx).
 *Remember this device* sets a 90-day cookie; otherwise it's a browser-session
 cookie, with a 12-hour idle limit on the server. Expiry slides with use.
@@ -458,7 +458,7 @@ five wrong tries lock it for a minute; there's no recovery).
 
 **Desktop notifications** are entirely in the browser
 (`widgets/notifications.js`): new items arrive over the WebSocket, and those at
-or above the chosen priority raise a notification while a Pantomath tab is
+or above the chosen priority raise a notification while a OmenWatch tab is
 open. Browsers only allow this over HTTPS or on localhost.
 
 ## 12. The frontend
@@ -472,7 +472,7 @@ sections shown one at a time.
   has a section and a loader.
 - **Start-up.** The page first asks `/api/auth/status`. Signed out, it shows
   the sign-in page and loads nothing else. Any later response with
-  `X-Pantomath-Sign-In: required`, or the WebSocket closing with 4401, brings
+  `X-OmenWatch-Sign-In: required`, or the WebSocket closing with 4401, brings
   the sign-in page back.
 - **One list component.** The Live feed's list and item panel is one
   component (`createFeedPanel`), used by every list page with its own state.
@@ -494,11 +494,11 @@ sections shown one at a time.
 ## 13. Packaging
 
 `build.sh deb` stages the application under
-`/opt/pantomath`, bundles Python wheels for 3.10 to 3.14 so installs work
+`/opt/omenwatch`, bundles Python wheels for 3.10 to 3.14 so installs work
 offline, strips bytecode caches, and builds the package. The install scripts
 are described in the [administration guide](administration.md#2-installing).
-The systemd unit runs as the `pantomath` user with `NoNewPrivileges`,
-`ProtectSystem=strict` (only `/var/lib/pantomath` writable), `ProtectHome` and
+The systemd unit runs as the `omenwatch` user with `NoNewPrivileges`,
+`ProtectSystem=strict` (only `/var/lib/omenwatch` writable), `ProtectHome` and
 `PrivateTmp`.
 
 ## 14. Testing
@@ -514,14 +514,14 @@ priority table, Our stack and KEV, webhooks, restore, migrations, and several
 frontend contracts checked in the source. Conventions:
 
 - each test gets a clean database (`fresh_db` in `tests/conftest.py`);
-- most tests run with sign-in off (`PANTOMATH_OPEN_DASHBOARD=1`, set in
+- most tests run with sign-in off (`OMENWATCH_OPEN_DASHBOARD=1`, set in
   `conftest.py`); `tests/test_sign_in.py` and `tests/test_first_run.py`
   turn it back on and check that every data route refuses signed-out
   requests;
 - network tests use a local HTTP server started by the test, never the
   internet.
 
-## 15. Extending Pantomath
+## 15. Extending OmenWatch
 
 - **Tuning detection:** edit the keyword lists in `scoring.py`, the vendor
   and actor lists in `tagging.py`, or the patterns in `ioc_extraction.py`.

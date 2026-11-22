@@ -1,11 +1,11 @@
-# Pantomath user guide
+# OmenWatch user guide
 
-How to use Pantomath day to day: reading the feed, finding what affects
+How to use OmenWatch day to day: reading the feed, finding what affects
 you, working with indicators, and (for administrators) managing sources,
 settings and alerts.
 
 Installing and running the server is covered in
-[administration.md](administration.md). How Pantomath works inside, and
+[administration.md](administration.md). How OmenWatch works inside, and
 every rule it applies, is in [how-it-works.md](how-it-works.md).
 
 **Contents**
@@ -38,15 +38,15 @@ Everyone signs in. There are two passwords:
 
 | Password | Who has it | What it allows |
 |---|---|---|
-| **Team password** | Everyone who uses Pantomath | Viewing everything: feeds, indicators, analytics, Affects us, Exploited |
-| **Settings password** | Whoever manages Pantomath | Everything the team password allows, plus Settings and Sources |
+| **Team password** | Everyone who uses OmenWatch | Viewing everything: feeds, indicators, analytics, Affects us, Exploited |
+| **Settings password** | Whoever manages OmenWatch | Everything the team password allows, plus Settings and Sources |
 
 Type either one on the sign-in page. Signing in with the Settings password
 also unlocks Settings straight away; otherwise Settings asks for it when you
 open it (and stays unlocked for an hour).
 
 **Remember this device** keeps you signed in for 90 days since you last
-used Pantomath. Use it on the wall screen and your own computer, never on a
+used OmenWatch. Use it on the wall screen and your own computer, never on a
 shared machine. Without it you stay signed in until you close the browser
 (or after 12 hours without using it).
 
@@ -59,9 +59,9 @@ on.
 
 **Forgot a password?**
 
-- *Team password:* ask whoever manages Pantomath.
+- *Team password:* ask whoever manages OmenWatch.
 - *Settings password:* on the sign-in page, choose **Forgot the Settings
-  password?** and enter the recovery code you saved when Pantomath was set up.
+  password?** and enter the recovery code you saved when OmenWatch was set up.
   You choose a new password and get a new recovery code (each code works
   once). If the recovery code is lost too, an administrator can set a new
   password on the server; see [administration.md](administration.md#5-admin-commands).
@@ -136,7 +136,7 @@ counts use each item's **published** date (see
 
 **The banner** at the top answers "does anything affect us?":
 
-- *Tell Pantomath what you run* (dashed): Our stack is empty. The button
+- *Tell OmenWatch what you run* (dashed): Our stack is empty. The button
   opens Settings, Our stack.
 - *N items affect our stack* (teal): items in the range mention your kit.
 - *N items affect our stack, M exploited* (red): some of them are being
@@ -149,7 +149,7 @@ counts use each item's **published** date (see
 | Figure | What it counts |
 |---|---|
 | Critical and high | Items with Critical or High priority published in the range (how many are Critical underneath) |
-| New since you last looked | Items Pantomath stored since you last left, minus the ones you've opened |
+| New since you last looked | Items OmenWatch stored since you last left, minus the ones you've opened |
 | Indicators this week | Distinct CVEs, IP addresses, hashes and emails seen in the last 7 days |
 | Published this week | Items published in the last 7 days (how many today) |
 | Sources | Working feeds out of all feeds; click to see failing ones |
@@ -183,7 +183,7 @@ the catalog may be switched off or unable to download.
 
 ## 6. Live feed
 
-Everything Pantomath has collected, 50 items per page.
+Everything OmenWatch has collected, 50 items per page.
 
 **Order:** newest arrivals first. Items that arrived in the same poll of a
 feed are listed newest-published first.
@@ -194,7 +194,7 @@ feed are listed newest-published first.
 - **Priority toggles**: Critical, High, Medium, Low. Click to hide or show a level.
 - **Affects us** and **Exploited**: show only those items.
 - **All sources / All categories**: one feed, or one kind of feed.
-- **From / To**: by the date Pantomath stored the item. The hint next to
+- **From / To**: by the date OmenWatch stored the item. The hint next to
   the dates shows the stored range.
 
 **Comfortable / Compact** switches between rows with a one-line summary and
@@ -202,7 +202,7 @@ denser rows with titles only. Your choice is remembered and applies to every
 list.
 
 **New since you last looked.** Items that arrived after you last left
-Pantomath are grouped under this divider, with a teal dot and a bold title.
+OmenWatch are grouped under this divider, with a teal dot and a bold title.
 **Opening an item marks it read**: the dot goes, the title un-bolds and every
 "new" count drops by one straight away, in this tab and any other open tab.
 The item stays where it is so the list doesn't jump. **Mark all as read**
@@ -213,7 +213,7 @@ clears everything at once.
 - priority and category, and **Why** it got that priority;
 - for exploited CVEs, a red box with CISA's details: when it was added,
   CISA's deadline for fixing it, and whether ransomware groups use it;
-- source, published time and when Pantomath saw it, vendors and threat actors;
+- source, published time and when OmenWatch saw it, vendors and threat actors;
 - the summary;
 - **Indicators**: every CVE, IP address, hash and email found, each with a
   copy button (**Copy all** copies the lot). Click one to see every item that
@@ -235,7 +235,7 @@ marks), each showing the newest 200 matching items:
 | Vulnerabilities | Items that mention a CVE, or come from a source in the Vulnerability category |
 | Malware | Items that name a threat actor, or come from a source in the Malware category |
 | Ransomware | Items that mention ransomware, from any source |
-| Saved | Items saved with the star or **Save**. Saves are shared by everyone using this Pantomath |
+| Saved | Items saved with the star or **Save**. Saves are shared by everyone using this OmenWatch |
 
 Each has a summary strip, **Most mentioned here** chips, and a filter box that
 narrows the page by title, source, CVE, vendor, actor or stack name. If a page
@@ -267,10 +267,10 @@ matches are shown).
 | Mentions | How many items mention it (in the selected day, if one is picked) |
 | Sources | How many different feeds mentioned it |
 | Highest priority | The highest priority of any item that mentions it |
-| First seen / Last seen | When Pantomath first and last saw it, over all time |
+| First seen / Last seen | When OmenWatch first and last saw it, over all time |
 
 Click a value to open its **drill-down** under the table: every article that
-mentions it (with when Pantomath saw each one) and **Seen alongside**, the
+mentions it (with when OmenWatch saw each one) and **Seen alongside**, the
 other indicators, vendors and actors that appear in the same articles.
 
 **Exporting.** Tick rows (the box in the header ticks the whole page), then:
@@ -286,7 +286,7 @@ With nothing ticked, the buttons act on **every** indicator in the current
 tab (respecting the selected day and filter).
 
 **The activity calendar** shows, for each day, how many distinct indicators
-of the current type Pantomath saw that day. It's the same count the table
+of the current type OmenWatch saw that day. It's the same count the table
 shows when you click that day. Hover a day for "N CVEs in M articles". Click
 a day to narrow the table and list that day's articles; **Clear date** goes
 back to all time. The arrows move between months.
@@ -366,7 +366,7 @@ can't be promoted.
 
 **+ Add indicators**: paste values one per line, or **Import a CSV or text
 file** (for a CSV, name the column holding the values, or leave it empty and
-Pantomath picks it). Set the type (or let Pantomath detect it), confidence,
+OmenWatch picks it). Set the type (or let OmenWatch detect it), confidence,
 threat type, malware, campaign, lifetime, a reference and a note; they apply
 to every value. The result says how many were new, how many were already
 stored, and which values were refused and why.
@@ -418,7 +418,7 @@ Press `/` from anywhere to jump to it.
 
 ## 13. Sources (administrators)
 
-Sources are the RSS and Atom feeds Pantomath reads. Pantomath starts with
+Sources are the RSS and Atom feeds OmenWatch reads. OmenWatch starts with
 none.
 
 **The health strip** at the top: *Healthy* (of all sources), *Failing* (and
@@ -452,7 +452,7 @@ items).
 
 **Also on this page:** **Refresh all now** (checks every enabled source
 immediately), **Export** / **Import** (the source list as JSON, for another
-Pantomath; the file contains feed addresses, which can include API keys, so
+OmenWatch; the file contains feed addresses, which can include API keys, so
 treat it as confidential), and **Lock** (locks Settings and Sources again
 until the Settings password is entered).
 
@@ -520,7 +520,7 @@ database. **+ Add IOC feed** asks for:
   only one kind, which also refuses anything that doesn't fit.
 - *Confidence*, *Threat type* and *Lifetime*: given to every value from the
   feed, since plain lists carry no context.
-- *Fetch every*: 15 minutes to 24 hours. Pantomath asks the server whether
+- *Fetch every*: 15 minutes to 24 hours. OmenWatch asks the server whether
   the list changed and skips it if not.
 - *Snapshot*: for lists of the current bad set, such as a C2 blocklist. A
   value that drops off the list stops counting for this feed at the next
@@ -540,7 +540,7 @@ now** downloads one straight away; the other buttons edit, pause and remove
 it. Removing a feed expires the indicators only it reported. *Keep expired
 indicators for* (90 days by default; 30 days, 6 months, 1 or 2 years, or
 forever) decides how long expired indicators stay before they are deleted.
-Pantomath ships with no IOC feeds. Check each feed's terms before relying on it.
+OmenWatch ships with no IOC feeds. Check each feed's terms before relying on it.
 
 **Allowlist**: values the IOC database must never hold. Add an IP address, a
 range such as `198.51.100.0/24`, a domain (which also covers its subdomains,
@@ -598,10 +598,10 @@ brings them back.
 **Desktop notifications** are your browser's own pop-ups. Turn them on in
 Settings, Alerts, allow them when the browser asks, and choose the lowest
 priority that should trigger one (Critical only; Critical and high; Critical,
-high and medium; Everything). They only appear while a Pantomath tab is open.
+high and medium; Everything). They only appear while a OmenWatch tab is open.
 Browsers only allow notifications on **HTTPS** (or on the server itself), so
 on plain HTTP Settings shows the permission as *blocked (insecure
-connection)*; run `sudo pantomath-admin setup-https` on the server.
+connection)*; run `sudo omenwatch-admin setup-https` on the server.
 
 **Webhooks** send a message to another system (a team chat channel, a
 ticketing system, your own script) whenever a new item matches, with no
@@ -628,7 +628,7 @@ chat tools display as-is, plus the structured data):
 ```json
 {
   "text": "[CRITICAL] Example advisories: Remote code execution in a VPN gateway (Affects us: VPN gateway; Exploited: CVE-2026-1234)",
-  "pantomath": {
+  "omenwatch": {
     "id": "…", "title": "…", "link": "https://…", "summary": "…",
     "severity": "critical", "source_id": "…", "source_name": "Example advisories",
     "category": "vulnerability", "vendors": [], "actors": [],
@@ -643,7 +643,7 @@ chat tools display as-is, plus the structured data):
 
 ## 16. Setting up a wall screen
 
-1. On the screen's browser, open Pantomath and sign in with the **team
+1. On the screen's browser, open OmenWatch and sign in with the **team
    password**, ticking **Remember this device**. It stays signed in for 90
    days since it was last used, through restarts and upgrades.
 2. Leave it on the **Dashboard** (or Affects us). Everything refreshes by
@@ -658,16 +658,16 @@ Security, it shows the sign-in page again.
 
 ## 17. Using the API
 
-Scripts and other dashboards read Pantomath's data with an **API key**:
+Scripts and other dashboards read OmenWatch's data with an **API key**:
 
 1. Settings, Security, **API keys**: type what will use it (for example
    *SIEM export*) and **Create key**.
-2. Copy the key immediately. Pantomath keeps only a fingerprint and can't show it
+2. Copy the key immediately. OmenWatch keeps only a fingerprint and can't show it
    again.
 3. Send it with every request:
 
 ```bash
-curl -H "Authorization: Bearer pmk_…" "https://pantomath.example/api/items?severity=critical,high&limit=20"
+curl -H "Authorization: Bearer pmk_…" "https://omenwatch.example/api/items?severity=critical,high&limit=20"
 ```
 
 A key can read everything but change nothing. Revoke it from the same
@@ -677,8 +677,8 @@ SIEMs and firewalls that check values against the IOC database use a **SIEM
 key** instead (Settings, Security, **SIEM keys**), with the lookup API:
 
 ```bash
-curl -H "Authorization: Bearer pms_…" "https://pantomath.example/api/v1/lookup?value=203.0.113.45"
-curl -H "Authorization: Bearer pms_…" "https://pantomath.example/api/v1/export?type=ip&min_confidence=70&format=txt"
+curl -H "Authorization: Bearer pms_…" "https://omenwatch.example/api/v1/lookup?value=203.0.113.45"
+curl -H "Authorization: Bearer pms_…" "https://omenwatch.example/api/v1/export?type=ip&min_confidence=70&format=txt"
 ```
 
 A SIEM key works only there, and an API key doesn't work there. See
@@ -708,7 +708,7 @@ product name that's also an ordinary word, say), refine the entry in
 Settings, Our stack.
 
 **An item says "Wording rated high" instead of the words it matched.** It was
-stored before Pantomath recorded that detail. An administrator can run
+stored before OmenWatch recorded that detail. An administrator can run
 Settings, Storage, Reprocess all.
 
 **The "new" counts look wrong.** They're kept per browser: another computer
@@ -720,7 +720,7 @@ address), *could not resolve the host name* or *no response* (network or DNS
 from the server).
 
 **Desktop notifications never appear.** They need HTTPS and an open
-Pantomath tab. See [Alerts](#15-alerts-desktop-notifications-and-webhooks).
+OmenWatch tab. See [Alerts](#15-alerts-desktop-notifications-and-webhooks).
 
 **The page asks me to sign in again.** Your session ended or was signed
 out. Sign in again; tick Remember this device on your own computer.

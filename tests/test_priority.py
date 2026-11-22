@@ -7,11 +7,11 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from pantomath.alerts.matcher import matches_webhook
-from pantomath.app import app
-from pantomath.database.sqlite import get_db, init_db
-from pantomath.intelligence.priority import compute_priority, explain_priority
-from pantomath.intelligence.scoring import score_severity_detail
+from omenwatch.alerts.matcher import matches_webhook
+from omenwatch.app import app
+from omenwatch.database.sqlite import get_db, init_db
+from omenwatch.intelligence.priority import compute_priority, explain_priority
+from omenwatch.intelligence.scoring import score_severity_detail
 
 client = TestClient(app)
 
@@ -78,7 +78,7 @@ async def test_priority_follows_our_stack_and_the_catalog():
     db = await get_db()
     await db.execute("INSERT INTO kev (cve) VALUES ('CVE-2099-7')")
     await db.commit()
-    from pantomath.intelligence.kev import recompute_item_kev
+    from omenwatch.intelligence.kev import recompute_item_kev
     await recompute_item_kev(db)
     await db.commit()
     await db.close()

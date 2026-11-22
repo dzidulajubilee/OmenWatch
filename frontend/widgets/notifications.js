@@ -1,6 +1,6 @@
 /**
  * Desktop notifications for new items, using the standard browser
- * Notification API. Pantomath is a locally-hosted web app (not a native
+ * Notification API. OmenWatch is a locally-hosted web app (not a native
  * Tauri/Electron app), so this is the correct mechanism for this
  * architecture — it produces real OS-level notification popups, but only
  * while this dashboard tab is open in the browser. There's no
@@ -12,14 +12,14 @@ const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
 
 function notifPrefs() {
   return {
-    enabled: localStorage.getItem('pantomath-notif-enabled') === 'true',
-    threshold: localStorage.getItem('pantomath-notif-threshold') || 'high',
+    enabled: localStorage.getItem('omenwatch-notif-enabled') === 'true',
+    threshold: localStorage.getItem('omenwatch-notif-threshold') || 'high',
   };
 }
 
 function saveNotifPrefs(enabled, threshold) {
-  localStorage.setItem('pantomath-notif-enabled', String(enabled));
-  localStorage.setItem('pantomath-notif-threshold', threshold);
+  localStorage.setItem('omenwatch-notif-enabled', String(enabled));
+  localStorage.setItem('omenwatch-notif-threshold', threshold);
 }
 
 function updatePermissionHint() {
@@ -47,8 +47,8 @@ function updatePermissionHint() {
 function insecureContextWarning() {
   const isIpAddress = /^(\d{1,3}\.){3}\d{1,3}$/.test(location.hostname);
   const suggestion = isIpAddress
-    ? `Try accessing this dashboard as "http://localhost:${location.port}" if you're on the same machine Pantomath runs on, or put it behind HTTPS (a reverse proxy like Caddy/nginx with a certificate) for remote access.`
-    : `Access this dashboard over HTTPS, or as "http://localhost:${location.port}" if you're on the same machine Pantomath runs on.`;
+    ? `Try accessing this dashboard as "http://localhost:${location.port}" if you're on the same machine OmenWatch runs on, or put it behind HTTPS (a reverse proxy like Caddy/nginx with a certificate) for remote access.`
+    : `Access this dashboard over HTTPS, or as "http://localhost:${location.port}" if you're on the same machine OmenWatch runs on.`;
   return `Desktop notifications require a secure connection. This page is loaded over plain HTTP at "${location.hostname}", which isn't localhost or HTTPS — browsers block the notification permission prompt entirely on insecure origins, so no dialog will ever appear here no matter how many times you click this toggle. ${suggestion}`;
 }
 
@@ -80,7 +80,7 @@ async function initNotificationControls() {
       }
       saveNotifPrefs(true, thresholdSelect.value);
       toggle.classList.add('on');
-      new Notification('Pantomath notifications enabled', {
+      new Notification('OmenWatch notifications enabled', {
         body: `You'll be notified for ${thresholdSelect.options[thresholdSelect.selectedIndex].text.toLowerCase()} items.`,
       });
     } else {
@@ -108,6 +108,6 @@ function notifyForNewItems(items) {
     const n = new Notification(`[${i.severity.toUpperCase()}] ${i.source_name}`, { body: i.title });
     n.onclick = () => { window.focus(); window.open(i.link, '_blank'); };
   } else {
-    new Notification('Pantomath', { body: `${qualifying.length} new items match your notification threshold.` });
+    new Notification('OmenWatch', { body: `${qualifying.length} new items match your notification threshold.` });
   }
 }
