@@ -18,7 +18,15 @@ are not trusted: only http(s), and only public addresses unless the link
 is on the feed's own host (an internal mirror's articles are internal
 too). Redirects are checked the same way. Without this, a feed could make
 OmenWatch read file:// paths or internal services.
+
+The check happens where the connection is made (2.0): the name is looked
+up once, the answer is checked, and the socket connects to exactly that
+address. Checking first and letting urllib look the name up again would let
+a hostile DNS server answer "public" to the check and "internal" to the
+connection (DNS rebinding). Behind an HTTP proxy the proxy does the lookup,
+so there only the up-front check applies.
 """
+import http.client
 import ipaddress
 import socket
 import urllib.error
@@ -75,6 +83,56 @@ def allowed_url(url: str, trusted_host: str = "") -> bool:
     return bool(infos) and all(ipaddress.ip_address(info[4][0].split("%")[0]).is_global for info in infos)
 
 
+def _checked_address(host: str, port: int, trusted_host: str):
+    """
+    Looks `host` up once and returns (family, address) to connect to, only if
+    every address it has is public (or it is the feed's own host). Raises
+    OSError otherwise, which urllib reports as a failed fetch.
+    """
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not infos:
+        raise OSError(f"{host} has no address")
+    trusted = bool(trusted_host) and host.lower() == trusted_host.lower()
+    if not trusted and not all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos):
+        raise OSError(f"{host} is not a public address")
+    return infos[0][0], infos[0][4]
+
+
+def _pinned_handlers(trusted_host: str):
+    """urllib handlers whose connections go to the address _checked_address approved."""
+
+    def open_socket(conn):
+        family, address = _checked_address(conn.host, conn.port, trusted_host)
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        if isinstance(conn.timeout, (int, float)):
+            sock.settimeout(conn.timeout)
+        try:
+            sock.connect(address)
+        except BaseException:
+            sock.close()
+            raise
+        return sock
+
+    class PinnedHTTPConnection(http.client.HTTPConnection):
+        def connect(self):
+            self.sock = open_socket(self)
+
+    class PinnedHTTPSConnection(http.client.HTTPSConnection):
+        def connect(self):
+            # Certificate and SNI still use the name, not the address.
+            self.sock = self._context.wrap_socket(open_socket(self), server_hostname=self.host)
+
+    class PinnedHTTPHandler(urllib.request.HTTPHandler):
+        def http_open(self, req):
+            return self.do_open(PinnedHTTPConnection, req)
+
+    class PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+        def https_open(self, req):
+            return self.do_open(PinnedHTTPSConnection, req, context=self._context)
+
+    return [PinnedHTTPHandler(), PinnedHTTPSHandler()]
+
+
 class _CheckedRedirects(urllib.request.HTTPRedirectHandler):
     def __init__(self, trusted_host: str):
         super().__init__()
@@ -92,7 +150,11 @@ def fetch_article_text_sync(url: str, trusted_host: str = "") -> str:
         return ""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "OmenWatch/1.0"})
-        opener = urllib.request.build_opener(_CheckedRedirects(trusted_host))
+        handlers = [_CheckedRedirects(trusted_host)]
+        scheme = urllib.parse.urlsplit(url).scheme.lower()
+        if scheme not in urllib.request.getproxies():
+            handlers += _pinned_handlers(trusted_host)
+        opener = urllib.request.build_opener(*handlers)
         with opener.open(req, timeout=FETCH_TIMEOUT) as resp:
             content_type = resp.headers.get("Content-Type", "")
             if content_type and "html" not in content_type.lower():

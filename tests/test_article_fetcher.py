@@ -1,4 +1,5 @@
 import os
+import socket
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -106,3 +107,25 @@ def test_public_addresses_are_allowed(monkeypatch):
     monkeypatch.setattr(article_fetcher.socket, "getaddrinfo",
                         lambda *a, **k: [(2, 1, 6, "", ("93.184.215.14", 443))])
     assert allowed_url("https://news.example/story")
+
+
+def test_a_name_that_changes_address_after_the_check_is_not_fetched(site, monkeypatch):
+    """DNS rebinding: public when checked, internal when connecting. Fixed in 2.0."""
+    _Pages.pages["/secret"] = "<p>internal-service-content</p>"
+    port = int(site.rsplit(":", 1)[1])
+    real = socket.getaddrinfo
+    answers = iter([[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.215.14", port))]])
+
+    def rebinding(host, *args, **kwargs):
+        if host == "rebind.example":
+            # the first lookup sees a public address, every later one the internal server
+            return next(answers, [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))])
+        return real(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", rebinding)
+    assert fetch_article_text_sync(f"http://rebind.example:{port}/secret") == ""
+
+
+def test_the_feeds_own_host_still_connects_to_its_internal_address(site):
+    _Pages.pages["/own"] = "<p>mirror-article</p>"
+    assert "mirror-article" in fetch_article_text_sync(f"{site}/own", trusted_host="127.0.0.1")
