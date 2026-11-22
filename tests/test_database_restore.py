@@ -11,7 +11,9 @@ actually changed, not just that the endpoint claimed it did) and by
 reading the safety-backup file directly off disk to confirm the
 pre-restore data is really recoverable there.
 """
+import os
 import sqlite3
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -307,3 +309,23 @@ async def test_restore_endpoint_wiring_reapplies_schema_and_migrations():
         assert mode == 0o600, f"expected temp upload file to be 0600, got {oct(mode)}"
     finally:
         tmp.unlink(missing_ok=True)
+
+
+def test_only_the_three_newest_safety_copies_are_kept(tmp_path, monkeypatch):
+    from omenwatch.database import restore as restore_module
+
+    monkeypatch.setattr(restore_module, "_db_dir", lambda: tmp_path)
+    oldest_first = ["pantomath-pre-restore-20250101-000000.db"] + [
+        f"omenwatch-pre-restore-2026010{i}-000000.db" for i in range(1, 6)]
+    now = time.time()
+    for age, name in enumerate(reversed(oldest_first)):
+        (tmp_path / name).write_bytes(b"copy")
+        os.utime(tmp_path / name, (now - 1000 * age, now - 1000 * age))
+    (tmp_path / "omenwatch.db").write_bytes(b"live")
+
+    removed = restore_module._prune_safety_copies()
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "omenwatch-pre-restore-20260103-000000.db", "omenwatch-pre-restore-20260104-000000.db",
+        "omenwatch-pre-restore-20260105-000000.db", "omenwatch.db"]
+    assert sorted(removed) == sorted(oldest_first[:3])

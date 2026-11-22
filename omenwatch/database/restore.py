@@ -156,6 +156,26 @@ def _remove_wal_sidecars(db_path: str) -> None:
         p.unlink(missing_ok=True)
 
 
+KEEP_SAFETY_COPIES = 3
+# Pantomath (before 2.0) named them pantomath-pre-restore-*; they moved into
+# the same folder with the data, so they count too.
+_SAFETY_COPY_GLOBS = ("omenwatch-pre-restore-*.db", "pantomath-pre-restore-*.db")
+
+
+def _prune_safety_copies(keep: int = KEEP_SAFETY_COPIES) -> list[str]:
+    """Deletes all but the `keep` newest safety copies. Each is a full database."""
+    copies = sorted((p for pattern in _SAFETY_COPY_GLOBS for p in _db_dir().glob(pattern)),
+                    key=lambda p: p.stat().st_mtime, reverse=True)
+    removed = []
+    for old in copies[keep:]:
+        try:
+            old.unlink()
+            removed.append(old.name)
+        except OSError:
+            continue
+    return removed
+
+
 def restore_database(validated_tmp_path: pathlib.Path) -> dict:
     """
     Blocking. Call via loop.run_in_executor() from the API route — this
@@ -175,6 +195,8 @@ def restore_database(validated_tmp_path: pathlib.Path) -> dict:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         safety_backup_path = _db_dir() / f"omenwatch-pre-restore-{timestamp}.db"
         shutil.copy2(DB_PATH, safety_backup_path)
+        # Only once the new copy exists, so there is always at least one.
+        _prune_safety_copies()
 
     # os.replace is atomic as long as both paths are on the same
     # filesystem — guaranteed here since save_upload_to_temp() wrote the

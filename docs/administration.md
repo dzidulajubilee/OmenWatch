@@ -364,7 +364,8 @@ Restoring the main backup from the browser leaves `ioc.db` as it is.
 **Restoring:** Settings, Backup and restore, **Restore from file**. The file
 must be a OmenWatch SQLite database (checked before anything changes) of at
 most 2 GB. The current database is copied to a timestamped safety copy next
-to it first, then replaced in one step. Older backups are brought up to date
+to it first (`omenwatch-pre-restore-<date>-<time>.db`; the three newest are
+kept, older ones are deleted), then replaced in one step. Older backups are brought up to date
 automatically (new tables and columns are added, and items get their
 priority worked out).
 

@@ -574,7 +574,8 @@ brings them back.
   keys). Restoring it is done on the server; see the
   [administration guide](administration.md#9-data-backups-and-retention).
 - *Restore from file*: replaces **everything** with a backup. A safety copy
-  of the current database is kept on the server first.
+  of the current database is kept on the server first (the three newest are
+  kept).
 - *Export sources*: the source list as JSON.
 
 **Appearance**: light theme on or off (also the moon button in the header).
