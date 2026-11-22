@@ -35,6 +35,13 @@ async def get_ioc_db():
         raise IocUnavailable(f"The IOC database ({IOC_DB_PATH}) can't be opened: {e}") from e
     try:
         await _configure(db)
+        # ioc.db's indexes outgrow SQLite's 2 MB default cache quickly, and
+        # every value an import adds lands at a random place in them: 32 MB
+        # made 1M-indicator imports about 40% faster. NORMAL is safe in WAL
+        # mode (a power cut can lose the last commits, never corrupt the
+        # file) and saves a disk sync per commit.
+        await db.execute("PRAGMA cache_size = -32768")
+        await db.execute("PRAGMA synchronous = NORMAL")
     except BaseException as e:
         # Same reason as get_db(): never leave aiosqlite's thread running.
         await db.close()
