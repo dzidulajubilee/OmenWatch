@@ -28,9 +28,17 @@ class IocUnavailable(Exception):
     """ioc.db couldn't be opened. str() is shown on the IOC tab and returned by /api/v1."""
 
 
-async def get_ioc_db():
+async def get_ioc_db(daemon: bool = False):
+    """
+    A new connection to ioc.db; close it when done. `daemon` is for pooled
+    connections: aiosqlite runs each connection on its own thread, and an
+    idle pooled one must never keep the process alive at exit.
+    """
     try:
-        db = await aiosqlite.connect(IOC_DB_PATH)
+        pending = aiosqlite.connect(IOC_DB_PATH)
+        if daemon and hasattr(pending, "_thread"):
+            pending._thread.daemon = True   # aiosqlite starts the thread on await
+        db = await pending
     except Exception as e:
         raise IocUnavailable(f"The IOC database ({IOC_DB_PATH}) can't be opened: {e}") from e
     try:
@@ -62,3 +70,52 @@ async def init_ioc_db() -> None:
         await migrate(db, STEPS, "ioc.db")
     finally:
         await db.close()
+
+
+class ReadPool:
+    """
+    A few ioc.db connections kept open for API requests, instead of a new
+    connection (and thread) for every lookup. A connection goes back to the
+    pool only when the request ended cleanly with nothing uncommitted;
+    otherwise it is closed. If ioc.db has been replaced on disk, older
+    connections are dropped rather than served.
+    """
+
+    def __init__(self, size: int = 4):
+        self.size = size
+        self._idle: list[tuple] = []   # (connection, file identity when opened)
+
+    @staticmethod
+    def _identity():
+        try:
+            st = os.stat(IOC_DB_PATH)
+            return st.st_dev, st.st_ino
+        except OSError:
+            return None
+
+    async def acquire(self):
+        current = self._identity()
+        while self._idle:
+            db, identity = self._idle.pop()
+            if identity == current:
+                return db
+            await db.close()
+        db = await get_ioc_db(daemon=True)
+        db._pool_identity = self._identity()
+        return db
+
+    async def release(self, db, clean: bool) -> None:
+        identity = getattr(db, "_pool_identity", None)
+        if clean and not db.in_transaction and len(self._idle) < self.size and identity == self._identity():
+            self._idle.append((db, identity))
+        else:
+            await db.close()
+
+    async def close(self) -> None:
+        while self._idle:
+            db, _ = self._idle.pop()
+            await db.close()
+
+
+read_pool = ReadPool()
+

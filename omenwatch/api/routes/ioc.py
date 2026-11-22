@@ -30,7 +30,7 @@ from omenwatch.api.dependencies import (
 )
 from omenwatch.auth import sign_in
 from omenwatch.database.sqlite import get_db
-from omenwatch.ioc.db import IOC_DB_PATH, IocUnavailable, get_ioc_db
+from omenwatch.ioc.db import IOC_DB_PATH, IocUnavailable, read_pool
 from omenwatch.ioc.feeds import (
     DEFAULT_MAX_MB,
     FORMATS,
@@ -81,16 +81,19 @@ NEWS_COLUMNS = {"ipv4": "ips", "ipv6": "ips", "md5": "hashes", "sha1": "hashes",
 
 @asynccontextmanager
 async def ioc_db():
+    """A pooled ioc.db connection for one request (ioc.db's ReadPool)."""
     try:
-        db = await get_ioc_db()
+        db = await read_pool.acquire()
     except IocUnavailable as e:
         raise HTTPException(503, str(e)) from None
+    clean = False
     try:
         yield db
+        clean = True
     except sqlite3.DatabaseError as e:
         raise HTTPException(503, f"The IOC database isn't usable right now: {e}") from None
     finally:
-        await db.close()
+        await read_pool.release(db, clean)
 
 
 def type_filter(type_: str | None) -> list[str]:

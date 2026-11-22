@@ -195,15 +195,31 @@ async def create_session(db, role: str, remember: bool, ip: str, user_agent: str
     return token, session_id
 
 
-async def validate(db, token: str | None, siem: bool = False) -> dict | None:
-    """The session for a cookie or key, or None. SIEM keys only count when `siem` is True, and only they do then."""
+MISS = object()   # cached(): not in the short cache, so ask validate()
+
+
+def cached(token: str | None, siem: bool = False):
+    """
+    validate()'s answer from the short cache, without touching the database:
+    the session, None, or MISS when the cache doesn't know. Lets the access
+    checks skip opening a connection for the common case of a recent token.
+    """
     if not token:
         return None
+    now = time.time()
+    hit = _cache.get(hash_token(token))
+    if hit and hit[1] > now and (not hit[0]["expires_at"] or hit[0]["expires_at"] > now):
+        return hit[0] if (hit[0]["role"] == SIEM_ROLE) == siem else None
+    return MISS
+
+
+async def validate(db, token: str | None, siem: bool = False) -> dict | None:
+    """The session for a cookie or key, or None. SIEM keys only count when `siem` is True, and only they do then."""
+    known = cached(token, siem)
+    if known is not MISS:
+        return known
     digest = hash_token(token)
     now = time.time()
-    cached = _cache.get(digest)
-    if cached and cached[1] > now and (not cached[0]["expires_at"] or cached[0]["expires_at"] > now):
-        return cached[0] if (cached[0]["role"] == SIEM_ROLE) == siem else None
     cur = await db.execute("SELECT * FROM sessions WHERE token_hash = ?", (digest,))
     row = await cur.fetchone()
     if not row:

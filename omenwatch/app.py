@@ -12,7 +12,7 @@ from omenwatch.core.logging import get_logger
 from omenwatch.core.logging import setup as setup_logging
 from omenwatch.core.security import add_security_headers
 from omenwatch.database.sqlite import init_db
-from omenwatch.ioc.db import init_ioc_db
+from omenwatch.ioc.db import init_ioc_db, read_pool
 from omenwatch.workers.main import ioc_worker, news_worker
 
 FRONTEND = config.APP_ROOT / "frontend"
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     yield
     news_worker.stop()
     await ioc_worker.shutdown()
+    await read_pool.close()
 
 
 app = FastAPI(title="OmenWatch", lifespan=lifespan)

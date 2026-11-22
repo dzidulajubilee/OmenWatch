@@ -17,6 +17,18 @@ from omenwatch.auth import settings_auth, sign_in
 from omenwatch.database.sqlite import get_db
 
 
+async def session_for(token: str | None, siem: bool = False) -> dict | None:
+    """sign_in.validate(), opening the database only when the short cache doesn't know the token."""
+    session = sign_in.cached(token, siem)
+    if session is sign_in.MISS:
+        db = await get_db()
+        try:
+            session = await sign_in.validate(db, token, siem=siem)
+        finally:
+            await db.close()
+    return session
+
+
 async def require_viewer(request: Request):
     """
     Dependency on every route of `router` (0.8.0): the dashboard's data is
@@ -31,11 +43,7 @@ async def require_viewer(request: Request):
         return
     token = sign_in.token_from(request.cookies.get(sign_in.COOKIE_NAME), request.headers.get("authorization"))
     if token:
-        db = await get_db()
-        try:
-            session = await sign_in.validate(db, token)
-        finally:
-            await db.close()
+        session = await session_for(token)
         if session:
             request.state.session = session
             return
@@ -100,14 +108,8 @@ async def require_siem_key(request: Request):
     if sign_in.open_dashboard():
         return
     token = sign_in.token_from(None, request.headers.get("authorization"))
-    if token:
-        db = await get_db()
-        try:
-            session = await sign_in.validate(db, token, siem=True)
-        finally:
-            await db.close()
-        if session:
-            return
+    if token and await session_for(token, siem=True):
+        return
     raise HTTPException(401, "Send a SIEM key as 'Authorization: Bearer <key>'. Create one in OmenWatch, Settings, Security.",
                         headers={"WWW-Authenticate": "Bearer"})
 
