@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from omenwatch.api.dependencies import protected_router, router
-from omenwatch.api.routes.live import broadcast
+from omenwatch.core.live import broadcast
 from omenwatch.database.sqlite import get_db
 from omenwatch.ingestion.connectors.registry import CONNECTOR_REGISTRY, available_connector_types
 from omenwatch.ingestion.fetcher import FETCH_HARD_LIMIT, FeedFetchError, fetch_raw

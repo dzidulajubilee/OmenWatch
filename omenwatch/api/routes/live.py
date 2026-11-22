@@ -1,26 +1,14 @@
 """
-The live WebSocket: new items pushed to every open dashboard.
+The live WebSocket endpoint. Who is connected, and broadcasting to them, is
+in core/live.py.
 """
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from omenwatch.api.dependencies import auth_router
 from omenwatch.auth import sign_in
+from omenwatch.core.live import active_ws
 from omenwatch.database.sqlite import get_db
-
-active_ws: list[WebSocket] = []
-
-
-async def broadcast(message: dict):
-    dead = []
-    for ws in active_ws:
-        try:
-            await ws.send_json(message)
-        except Exception:
-            dead.append(ws)
-    for d in dead:
-        if d in active_ws:
-            active_ws.remove(d)
 
 
 @auth_router.websocket("/ws")

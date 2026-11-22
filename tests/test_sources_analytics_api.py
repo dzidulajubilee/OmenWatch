@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from omenwatch.app import app
 from omenwatch.database.sqlite import get_db
-from omenwatch.ingestion.scheduler import Scheduler
+from omenwatch.workers.news_worker import Scheduler
 
 client = TestClient(app)
 HOUR = 3600

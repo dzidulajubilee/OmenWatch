@@ -96,7 +96,7 @@ async def dispatch_webhooks_for_items(db, items: list[dict]):
     """
     Checks every enabled webhook against every newly-stored item and
     fires matching ones. Called from the scheduler right after a poll
-    produces new items — see omenwatch/ingestion/scheduler.py.
+    produces new items — see omenwatch/workers/news_worker.py.
     """
     if not items:
         return

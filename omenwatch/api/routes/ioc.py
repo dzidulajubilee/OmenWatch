@@ -53,7 +53,6 @@ from omenwatch.ioc.normalize import (
     refang,
 )
 from omenwatch.ioc.readers import READERS
-from omenwatch.ioc.scheduler import IocScheduler
 from omenwatch.ioc.store import (
     KEEP_EXPIRED_CHOICES,
     MANUAL,
@@ -69,8 +68,7 @@ from omenwatch.ioc.store import (
     set_keep_expired_days,
     set_source_confidence,
 )
-
-ioc_scheduler = IocScheduler()
+from omenwatch.workers.main import ioc_worker
 
 MAX_LOOKUP_VALUES = 1000
 MAX_MANUAL_BYTES = 20 * 1024 * 1024
@@ -652,7 +650,7 @@ async def delete_feed(feed_id: str):
 @ioc_protected_router.post("/api/ioc/feeds/{feed_id}/run")
 async def run_feed_now(feed_id: str):
     try:
-        return await ioc_scheduler.run_now(feed_id)
+        return await ioc_worker.run_now(feed_id)
     except IocUnavailable as e:
         raise HTTPException(503, str(e)) from None
 

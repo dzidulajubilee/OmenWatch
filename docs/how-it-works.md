@@ -164,7 +164,7 @@ steps 2–3 on stored items in batches of 200, without re-reading the feeds.
 
 ## 4. The scheduler
 
-`ingestion/scheduler.py` runs one loop inside the web process. Every 20 seconds
+`workers/news_worker.py` runs one loop inside the web process. Every 20 seconds
 it:
 
 1. checks each **enabled** source and polls those whose interval has elapsed

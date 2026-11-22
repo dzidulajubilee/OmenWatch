@@ -6,21 +6,19 @@ from fastapi.staticfiles import StaticFiles
 
 from omenwatch import __version__
 from omenwatch.api.dependencies import ioc_protected_router, ioc_router, siem_router
-from omenwatch.api.routes import auth_router, broadcast, make_poll_now_route, protected_router, router
-from omenwatch.api.routes.ioc import ioc_scheduler
+from omenwatch.api.routes import auth_router, make_poll_now_route, protected_router, router
 from omenwatch.core import config
 from omenwatch.core.logging import get_logger
 from omenwatch.core.logging import setup as setup_logging
 from omenwatch.core.security import add_security_headers
 from omenwatch.database.sqlite import init_db
-from omenwatch.ingestion.scheduler import Scheduler
 from omenwatch.ioc.db import init_ioc_db
+from omenwatch.workers.main import ioc_worker, news_worker
 
 FRONTEND = config.APP_ROOT / "frontend"
 
 setup_logging()
 log = get_logger("app")
-scheduler = Scheduler(broadcast)
 
 
 @asynccontextmanager
@@ -37,17 +35,17 @@ async def lifespan(app: FastAPI):
                      "show it on this server with: sudo omenwatch-admin setup-code")
     finally:
         await db.close()
-    await scheduler.start()
+    await news_worker.start()
     # The IOC database (1.0.0) is its own file: if it can't be set up, its
     # tab and /api/v1 report why and every other part of OmenWatch runs.
     try:
         await init_ioc_db()
     except Exception as e:
         log.error("The IOC database is unavailable: %s", e)
-    await ioc_scheduler.start()
+    await ioc_worker.start()
     yield
-    scheduler.stop()
-    await ioc_scheduler.shutdown()
+    news_worker.stop()
+    await ioc_worker.shutdown()
 
 
 app = FastAPI(title="OmenWatch", lifespan=lifespan)
@@ -59,7 +57,7 @@ add_security_headers(app)
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(protected_router)
-make_poll_now_route(scheduler)  # registers /api/sources/{id}/poll(-all) on protected_router
+make_poll_now_route(news_worker)  # registers /api/sources/{id}/poll(-all) on protected_router
 app.include_router(ioc_router)
 app.include_router(ioc_protected_router)
 app.include_router(siem_router)

@@ -60,7 +60,7 @@ OmenWatch/
 
 ## Data flow
 
-1. `omenwatch/ingestion/scheduler.py` wakes every 20s, checks each enabled source's
+1. `omenwatch/workers/news_worker.py` wakes every 20s, checks each enabled source's
    `interval_seconds` against its `last_fetched` timestamp.
 2. Due sources get handed to `omenwatch/ingestion/connectors/registry.get_connector()`,
    which looks up the class for that source's `connector_type` and calls
@@ -390,7 +390,7 @@ package) without affecting normal installs.
 Nothing is ever deleted automatically by default. `settings.retention_days`
 (default `0` = forever) is the only thing that prunes old items, and it's
 opt-in from Settings — the scheduler checks it at most once an hour
-(`omenwatch/ingestion/scheduler.py: _maybe_run_retention`) and just does
+(`omenwatch/workers/news_worker.py: _maybe_run_retention`) and just does
 nothing if it's `0`.
 
 Being direct about a real constraint here: RSS is not an archive format.
@@ -426,7 +426,7 @@ reaching into `omenwatch.ingestion.connectors.rss` directly) — except
 `Scheduler`: doing so would create a real circular import
 (`feeds → connectors → feeds.parser → feeds/__init__ again`), caught by
 the test suite the first time it was tried. Import `Scheduler` directly
-from `omenwatch.ingestion.scheduler` instead — that one line of nuance is
+from `omenwatch.workers.news_worker` instead — that one line of nuance is
 called out in the module's own docstring so it isn't rediscovered the
 hard way twice.
 

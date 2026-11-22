@@ -22,7 +22,7 @@ from omenwatch.ingestion.connectors.rss import RSSConnector
 from omenwatch.database.sqlite import get_db
 from omenwatch.ingestion import fetcher as feed_rss
 from omenwatch.ingestion.fetcher import FeedFetchError, fetch_raw
-from omenwatch.ingestion.scheduler import Scheduler
+from omenwatch.workers.news_worker import Scheduler
 
 RSS = b"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0"><channel><title>Test feed</title><link>http://example.test/</link>
