@@ -269,7 +269,7 @@ async def test_restore_endpoint_wiring_reapplies_schema_and_migrations():
     """
     import inspect
 
-    from omenwatch.api import routes
+    from omenwatch.api.routes import system as routes
 
     source = inspect.getsource(routes.restore_database_endpoint)
     assert "init_db()" in source, (

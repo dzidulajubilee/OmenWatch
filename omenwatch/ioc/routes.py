@@ -35,7 +35,7 @@ from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from omenwatch import __version__
-from omenwatch.api.routes import _client_ip, require_settings_auth, require_viewer
+from omenwatch.api.dependencies import client_ip, require_settings_auth, require_viewer
 from omenwatch.auth import sign_in
 from omenwatch.database.sqlite import get_db
 from omenwatch.ioc.db import IOC_DB_PATH, IocUnavailable, get_ioc_db
@@ -904,7 +904,7 @@ async def create_siem_key(body: SiemKeyIn, request: Request):
         raise HTTPException(400, "Give the key a name, so you know which SIEM uses it")
     db = await get_db()
     try:
-        token, key_id = await sign_in.create_session(db, sign_in.SIEM_ROLE, False, _client_ip(request), "", kind="api", label=label)
+        token, key_id = await sign_in.create_session(db, sign_in.SIEM_ROLE, False, client_ip(request), "", kind="api", label=label)
     finally:
         await db.close()
     return {"id": key_id, "key": token}
