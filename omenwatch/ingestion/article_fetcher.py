@@ -28,6 +28,7 @@ so there only the up-front check applies.
 """
 import http.client
 import ipaddress
+import re
 import socket
 import urllib.error
 import urllib.parse
@@ -38,35 +39,88 @@ from html.parser import HTMLParser
 FETCH_TIMEOUT = 8  # seconds — don't let a slow publisher stall the whole poll
 MAX_RAW_BYTES = 400_000  # cap what we read; real articles don't need more than this
 MAX_TEXT_LENGTH = 20_000  # cap what we hand to the regex-based extractors
-_SKIP_TAGS = {"script", "style", "noscript", "header", "footer", "nav", "svg"}
+_SKIP_TAGS = {"script", "style", "noscript", "header", "footer", "nav", "svg", "aside", "form", "template"}
+# Page furniture marked by class or id: menus, sidebars, "related stories",
+# tag clouds, share bars and comments. Their words ("Ransomware" as a menu
+# entry, say) used to be read as if the article said them.
+_SKIP_MARKERS = re.compile(
+    r"(?<![a-z])(?:menu|navbar|sidebar|widget|related|recommended|popular|trending|"
+    r"breadcrumbs?|share|social|newsletter|subscribe|comments?|tags?|tag-?cloud|categor(?:y|ies)|"
+    r"advert|ads?|promo|cookie|footer|header)(?![a-z])",
+    re.I,
+)
+_MAIN_TAGS = {"article", "main"}
+_VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+MIN_MAIN_TEXT = 200  # an <article>/<main> shorter than this is a teaser card, not the story
 
 
 class _TextExtractor(HTMLParser):
-    def __init__(self):
+    """
+    Collects visible text, leaving out page furniture. Text inside the first
+    <article> or <main> is kept apart, so the story itself can be preferred
+    over the whole page.
+    """
+
+    def __init__(self, use_markers: bool = True):
         super().__init__()
-        self._skip_depth = 0
+        self._use_markers = use_markers
+        self._skip: list[str] = []  # open tags being skipped, innermost last
+        self._main_depth = 0
+        self._main_done = False
         self.chunks: list[str] = []
+        self.main_chunks: list[str] = []
 
     def handle_starttag(self, tag, attrs):
-        if tag in _SKIP_TAGS:
-            self._skip_depth += 1
+        if tag in _VOID_TAGS:
+            return
+        if self._skip:
+            self._skip.append(tag)
+            return
+        marker = " ".join(v or "" for k, v in attrs if k in ("class", "id", "role"))
+        if tag in _SKIP_TAGS or (self._use_markers and tag not in _MAIN_TAGS and tag != "body" and _SKIP_MARKERS.search(marker)):
+            self._skip.append(tag)
+        elif tag in _MAIN_TAGS and not self._main_done:
+            self._main_depth += 1
 
     def handle_endtag(self, tag):
-        if tag in _SKIP_TAGS and self._skip_depth > 0:
-            self._skip_depth -= 1
+        if tag in _VOID_TAGS:
+            return
+        if self._skip:
+            # Pop back to the matching open tag; tolerates unclosed children.
+            if tag in self._skip:
+                while self._skip and self._skip.pop() != tag:
+                    pass
+            return
+        if tag in _MAIN_TAGS and self._main_depth:
+            self._main_depth -= 1
+            if not self._main_depth and len(" ".join(self.main_chunks)) >= MIN_MAIN_TEXT:
+                self._main_done = True
 
     def handle_data(self, data):
-        if self._skip_depth == 0:
-            text = data.strip()
-            if text:
-                self.chunks.append(text)
+        if self._skip:
+            return
+        text = data.strip()
+        if text:
+            self.chunks.append(text)
+            if self._main_depth and not self._main_done:
+                self.main_chunks.append(text)
+
+
+def _extract(html: str, use_markers: bool) -> str:
+    parser = _TextExtractor(use_markers)
+    with suppress(Exception):
+        parser.feed(html)
+    main = " ".join(parser.main_chunks)
+    return main if len(main) >= MIN_MAIN_TEXT else " ".join(parser.chunks)
 
 
 def html_to_text(html: str) -> str:
-    parser = _TextExtractor()
-    with suppress(Exception):
-        parser.feed(html)
-    return " ".join(parser.chunks)
+    text = _extract(html, use_markers=True)
+    if len(text) < MIN_MAIN_TEXT:
+        # A layout class such as "with-sidebar" on a wrapper can hide the
+        # whole page; fall back to skipping only by tag.
+        text = _extract(html, use_markers=False)
+    return text
 
 
 def allowed_url(url: str, trusted_host: str = "") -> bool:

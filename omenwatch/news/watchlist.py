@@ -17,7 +17,7 @@ Matching rules, same spirit as tagging.py and scoring.py:
 """
 import re
 
-from omenwatch.news.priority import compute_priority, content_of, recompute_priorities
+from omenwatch.news.priority import compute_priority, content_of, exploited_of, recompute_priorities
 
 _TAGS = re.compile(r"<[^>]+>")
 _BATCH = 1000
@@ -77,7 +77,7 @@ async def rematch_all(db) -> int:
     marked, last_rowid = 0, 0
     while True:
         cur = await db.execute(
-            """SELECT rowid, id, title, summary, watch_hits, severity, content_severity, kev_cves
+            """SELECT rowid, id, title, summary, cves, watch_hits, severity, content_severity, kev_cves
                FROM items WHERE rowid > ? ORDER BY rowid LIMIT ?""",
             (last_rowid, _BATCH),
         )
@@ -88,7 +88,7 @@ async def rematch_all(db) -> int:
         for row in rows:
             hits = ",".join(match_watchlist(compiled, row["title"], row["summary"]))
             marked += bool(hits)
-            level = compute_priority(content_of(row), bool(hits), bool(row["kev_cves"]))
+            level = compute_priority(content_of(row), bool(hits), exploited_of(row))
             if hits != (row["watch_hits"] or "") or level != row["severity"]:
                 updates.append((hits, level, row["id"]))
         if updates:

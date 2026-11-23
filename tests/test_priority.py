@@ -32,7 +32,8 @@ def test_priority_table(content, ours, exploited, expected):
 def test_bare_critical_no_longer_rates_high():
     assert score_severity_detail("Critical infrastructure operators meet in Lisbon", "") == ("low", "")
     assert score_severity_detail("App gets a critical update", "") == ("low", "")
-    assert score_severity_detail("Critical flaw in gateway", "") == ("high", "critical flaw")
+    assert score_severity_detail("Critical flaw in gateway", "") == ("medium", "critical flaw")  # 2.0.1: no CVE
+    assert score_severity_detail("Critical flaw in gateway", "CVE-2099-1234") == ("high", "critical flaw")
     assert score_severity_detail("Bug under active exploitation", "") == ("high", "under active exploitation")
     assert score_severity_detail("New CVE-2099-1 advisory", "")[0] == "medium"
 

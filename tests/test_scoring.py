@@ -5,7 +5,7 @@ from omenwatch.news.scoring import score_severity
 
 def test_high_severity_keywords():
     assert score_severity("Critical zero-day RCE", "Actively exploited in the wild") == "high"
-    assert score_severity("Ransomware gang strikes again", "") == "high"
+    assert score_severity("Ransomware gang strikes again", "") == "medium"  # 2.0.1: a topic, not urgency
 
 
 def test_medium_severity_keywords():
@@ -45,7 +45,8 @@ def test_apt_does_not_match_inside_words(text):
 
 
 @pytest.mark.parametrize("text, expected", [
-    ("Unauthenticated RCE in edge gateway", "high"),
+    ("Unauthenticated RCE in edge gateway CVE-2099-1234", "high"),
+    ("Unauthenticated RCE in edge gateway", "medium"),
     ("Flaw exploited as a zero-day", "high"),
     ("Two zero-days patched", "high"),
     ("APT29 phishing campaign", "medium"),

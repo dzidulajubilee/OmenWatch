@@ -207,6 +207,19 @@ For when a device is lost or you suspect a password leaked. Change the
 passwords afterwards.
 
 ```
+sudo omenwatch-admin rescore [--apply] [--fetch]
+```
+
+Re-rates stored articles with the current wording rules. Without `--apply`
+it only shows the result: how many articles are Critical, High, Medium and
+Low now and would be after, with examples of what would move. Nothing is
+saved. With `--apply` it saves the new ratings; the dashboard shows them on
+its next refresh. By default it works offline from the stored title, summary
+and CVEs. `--fetch` re-reads each article page first, which is slower and
+needs internet access. Indicators, tags and Our stack matches are left as
+they are.
+
+```
 sudo omenwatch-admin setup-https [--port 7373] [--yes]
 ```
 

@@ -109,8 +109,8 @@ Every item has a **priority**:
 | Pill | Meaning |
 |---|---|
 | **Critical** (solid red) | Something on *Our stack* is mentioned **and** the item describes an exploited vulnerability or a serious flaw. Act on these. |
-| **High** | An exploited vulnerability anywhere, a serious flaw (zero-day, RCE, ransomware…), or a vulnerability in something you run |
-| **Medium** | Vulnerability, CVE, breach, malware or phishing language; or something you run is mentioned without warning words |
+| **High** | An article about an exploited vulnerability, a zero-day or a serious flaw with a CVE, or a vulnerability in something you run |
+| **Medium** | Vulnerability, CVE, ransomware, breach, malware or phishing language; or something you run is mentioned without warning words |
 | **Low** | Everything else |
 
 Two markers can appear before an item's title:
@@ -700,8 +700,9 @@ Shortcuts are ignored while you're typing in a field.
 ## 19. Questions and problems
 
 **Why is an item High when nothing we run is involved?** It describes a
-serious flaw (zero-day, RCE, ransomware…) or has a CVE on CISA's list. Open
-it and read **Why**.
+zero-day or a serious flaw with a CVE, or it's about a CVE on CISA's list.
+Open it and read **Why**. Ransomware, malware and breach stories on their
+own are Medium.
 
 **Why is an item Critical?** It mentions something on Our stack *and* has an
 exploited CVE or serious-flaw wording. If the stack match is wrong (a

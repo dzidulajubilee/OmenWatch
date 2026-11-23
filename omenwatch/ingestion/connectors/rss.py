@@ -18,7 +18,7 @@ from omenwatch.ingestion.fetcher import FETCH_HARD_LIMIT, FeedFetchError, fetch_
 from omenwatch.intelligence.extraction import extract_iocs
 from omenwatch.news.kev import kev_hits, load_kev_set
 from omenwatch.news.parser import normalize_entry
-from omenwatch.news.priority import compute_priority
+from omenwatch.news.priority import compute_priority, exploited_counts
 from omenwatch.news.scoring import score_severity_detail
 from omenwatch.news.tagging import extract_tags
 from omenwatch.news.watchlist import load_watchlist, match_watchlist
@@ -102,14 +102,17 @@ class RSSConnector(BaseConnector):
             # Full article text (when available) is used ONLY to widen
             # what severity/tagging/IOC extraction can see — the stored
             # and displayed summary stays the original RSS teaser.
-            extraction_text = " ".join(filter(None, [item["summary"], article_texts.get(item["guid"], "")]))
+            body = article_texts.get(item["guid"], "")
+            extraction_text = " ".join(filter(None, [item["summary"], body]))
 
-            content_severity, content_keyword = score_severity_detail(item["title"], extraction_text)
             vendors, actors = extract_tags(item["title"], extraction_text)
             iocs = extract_iocs(item["title"], extraction_text)
+            content_severity, content_keyword = score_severity_detail(
+                item["title"], item["summary"] or "", body, has_cve=bool(iocs["cve"])
+            )
             watch_hits = match_watchlist(watchlist, item["title"], item["summary"])
             kev_cves = kev_hits(iocs["cve"], kev_set)
-            severity = compute_priority(content_severity, bool(watch_hits), bool(kev_cves))
+            severity = compute_priority(content_severity, bool(watch_hits), exploited_counts(item["title"], iocs["cve"], kev_cves))
 
             # INSERT OR IGNORE + rowcount is still the final "only new
             # items stored" safety net (e.g. a concurrent poll), even

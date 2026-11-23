@@ -19,7 +19,7 @@ import asyncio
 from omenwatch.ingestion.article_fetcher import fetch_article_text_sync
 from omenwatch.intelligence.extraction import extract_iocs
 from omenwatch.news.kev import kev_hits, load_kev_set
-from omenwatch.news.priority import compute_priority
+from omenwatch.news.priority import compute_priority, exploited_counts
 from omenwatch.news.scoring import score_severity_detail
 from omenwatch.news.tagging import extract_tags
 from omenwatch.news.watchlist import load_watchlist, match_watchlist
@@ -99,14 +99,17 @@ async def reprocess_items(db, source_id: str | None = None, use_deep_extraction:
         article_texts = await _fetch_article_texts(batch) if use_deep_extraction else {}
 
         for row in batch:
-            extraction_text = " ".join(filter(None, [row["summary"] or "", article_texts.get(row["id"], "")]))
-            content_severity, content_keyword = score_severity_detail(row["title"], extraction_text)
+            body = article_texts.get(row["id"], "")
+            extraction_text = " ".join(filter(None, [row["summary"] or "", body]))
             vendors, actors = extract_tags(row["title"], extraction_text)
             iocs = extract_iocs(row["title"], extraction_text)
+            content_severity, content_keyword = score_severity_detail(
+                row["title"], row["summary"] or "", body, has_cve=bool(iocs["cve"])
+            )
 
             watch_hits = match_watchlist(watchlist, row["title"], row["summary"] or "")
             kev_cves = kev_hits(iocs["cve"], kev_set)
-            severity = compute_priority(content_severity, bool(watch_hits), bool(kev_cves))
+            severity = compute_priority(content_severity, bool(watch_hits), exploited_counts(row["title"], iocs["cve"], kev_cves))
             await db.execute(
                 """UPDATE items SET severity=?, vendors=?, actors=?, cves=?, ips=?, hashes=?, emails=?,
                                     watch_hits=?, kev_cves=?, content_severity=?, content_keyword=?

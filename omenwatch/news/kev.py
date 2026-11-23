@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.request
 
-from omenwatch.news.priority import compute_priority, content_of
+from omenwatch.news.priority import compute_priority, content_of, exploited_counts
 
 DEFAULT_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 KEV_TIMEOUT = 30            # seconds per network read
@@ -101,7 +101,7 @@ async def recompute_item_kev(db) -> int:
     marked, last_rowid = 0, 0
     while True:
         cur = await db.execute(
-            """SELECT rowid, id, cves, kev_cves, watch_hits, severity, content_severity FROM items
+            """SELECT rowid, id, title, cves, kev_cves, watch_hits, severity, content_severity FROM items
                WHERE rowid > ? AND (cves != '' OR kev_cves != '') ORDER BY rowid LIMIT ?""",
             (last_rowid, _BATCH),
         )
@@ -112,7 +112,7 @@ async def recompute_item_kev(db) -> int:
         for row in rows:
             hits = ",".join(kev_hits([c for c in (row["cves"] or "").split(",") if c], kev_set))
             marked += bool(hits)
-            level = compute_priority(content_of(row), bool(row["watch_hits"]), bool(hits))
+            level = compute_priority(content_of(row), bool(row["watch_hits"]), exploited_counts(row["title"], row["cves"], hits))
             if hits != (row["kev_cves"] or "") or level != row["severity"]:
                 updates.append((hits, level, row["id"]))
         if updates:

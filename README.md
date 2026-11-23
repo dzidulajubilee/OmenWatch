@@ -130,15 +130,17 @@ Every item gets a **priority**: Critical, High, Medium or Low. OmenWatch works
 it out itself (`omenwatch/news/priority.py`); nothing is sent to an
 outside service. Three signals go in:
 
-- **Wording.** The title and summary, plus the full article page when deep
-  extraction is on, are searched as whole words (`scoring.py`). Serious flaw
-  words: ransomware, zero-day, 0-day, RCE, remote code execution, "actively
-  exploited", "exploited in the wild", "under active exploitation", "critical
-  vulnerability", "critical flaw", "critical bug", "critical severity".
-  Vulnerability words: a CVE number, vulnerability, APT, breach, malware,
-  phishing, backdoor, supply chain, data leak. Plurals and past tense count.
-- **Exploited.** One of its CVEs is on CISA's Known Exploited
-  Vulnerabilities catalog.
+- **Wording.** The title, the feed summary and the opening of the article
+  are searched as whole words (`scoring.py`); menus, sidebars and the rest
+  of the page are not. Serious wording means exploitation (zero-day,
+  "actively exploited", "exploited in the wild"…) or a serious flaw (RCE,
+  remote code execution, "critical vulnerability"…) in an article that names
+  a CVE. It needs the title, or two mentions in the text. Vulnerability
+  words: a CVE number, vulnerability, ransomware, APT, breach, malware,
+  phishing, backdoor, supply chain, data leak.
+- **Exploited.** The article is about a CVE on CISA's Known Exploited
+  Vulnerabilities catalog (the CVE is in the title, or the article names at
+  most three CVEs).
 - **Affects us.** It names something on Our stack.
 
 | | Doesn't mention our stack | Mentions our stack |
@@ -154,7 +156,8 @@ exploitation or a serious flaw*. Every item shows why it got its priority
 ("Exploited: CVE-… on CISA's list", "Affects us: FortiGate", "Wording:
 mentions “zero-day”"). Priorities are worked out again automatically when Our
 stack or the catalog changes. To change the wording rules, edit the lists in
-`scoring.py`, then Settings, Storage, Reprocess all.
+`scoring.py`, then run `sudo omenwatch-admin rescore` to see what would
+change, and add `--apply` to save it.
 
 ## Requirements
 
@@ -388,6 +391,23 @@ How it fits together, and why things are the way they are:
   Webhooks work without a browser.
 
 ## Changelog
+
+**2.0.1** — Far fewer High items. Too many articles were rated High, often
+because of one word somewhere on the page.
+- **I rate the article, not the page.** Only the title, the summary and the
+  opening of the article count. Menus, sidebars and "related stories" are
+  left out, so a site with "Ransomware" in its menu no longer makes every
+  article High.
+- **High means something to act on:** exploitation, or a serious flaw in an
+  article with a CVE. Ransomware, malware, breach and APT now rate Medium;
+  they're topics, not urgency.
+- **The title counts more.** One passing mention in the text is Medium; the
+  title, or two mentions, make it High.
+- **Patch roundups no longer turn High** just because one of their many CVEs
+  is on CISA's list. That only counts when the article is about that CVE.
+- **`omenwatch-admin rescore`** shows how many articles would change
+  priority, with examples, before anything is saved. Add `--apply` to save
+  it, and `--fetch` to re-read the article pages first.
 
 **2.0.0** — I renamed Pantomath to OmenWatch and rebuilt a lot underneath it.
 - **The upgrade is automatic.** Installing OmenWatch over Pantomath moves your

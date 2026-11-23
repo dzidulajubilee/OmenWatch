@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from omenwatch.api.dependencies import router
 from omenwatch.api.routes.sources import SOURCE_STATE_ORDER, source_health
 from omenwatch.database.sqlite import get_db
-from omenwatch.news.priority import explain_priority
+from omenwatch.news.priority import explain_priority, exploited_counts
 
 # Page sizes. SQLite reads a negative LIMIT as "no limit", so an unchecked
 # ?limit=-1 would load every stored item into memory at once. The IOC
@@ -34,7 +34,8 @@ def _row_to_item(row: dict) -> dict:
     row["watch_hits"] = [w for w in (row.get("watch_hits") or "").split(",") if w]
     row["kev_cves"] = [k for k in (row.get("kev_cves") or "").split(",") if k]
     row["priority_reasons"] = explain_priority(
-        row.get("content_severity") or "", row.get("content_keyword") or "", row["watch_hits"], row["kev_cves"]
+        row.get("content_severity") or "", row.get("content_keyword") or "", row["watch_hits"], row["kev_cves"],
+        exploited_counts(row.get("title") or "", row.get("cves") or [], row["kev_cves"]), len(row.get("cves") or []),
     )
     row["bookmarked"] = bool(row.get("bookmarked"))
     return row

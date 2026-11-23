@@ -8,6 +8,8 @@ there's deliberately no network-facing "forgot everything" path.
                            (--clear: remove it and go back to first-run setup)
   sign-out-everyone        end every browser sign-in (--api-keys: revoke keys too)
   setup-https              put nginx with HTTPS in front of OmenWatch
+  rescore                  re-rate stored articles with the current rules; shows
+                           the change first (--apply writes it, --fetch re-reads pages)
 
 Commands that touch the database, when run as root, continue as the owner of
 the database's folder (the `omenwatch` service user): the database runs in
@@ -173,6 +175,37 @@ async def sign_out_everyone(include_api_keys: bool) -> int:
     return 0
 
 
+async def rescore_items(apply: bool, fetch: bool) -> int:
+    from omenwatch.database.sqlite import get_db, init_db
+    from omenwatch.news.rescore import rescore
+
+    await init_db()
+    db = await get_db()
+    try:
+        result = await rescore(db, apply=apply, fetch=fetch)
+    finally:
+        await db.close()
+    total = sum(result["before"].values())
+    print(f"{total} articles. Priority now and with the current rules:\n")
+    print(f"  {'':10}{'now':>8}{'new':>8}")
+    for level in result["before"]:
+        print(f"  {level.capitalize():10}{result['before'][level]:>8}{result['after'][level]:>8}")
+    for label, key in (("Lowered", "lowered"), ("Raised", "raised")):
+        if result[key]:
+            print(f"\n{label}, for example:")
+            for m in result[key]:
+                why = f"  ({m['keyword']})" if m["keyword"] else ""
+                print(f"  {m['before']:>8} -> {m['after']:<8} {m['title'][:70]}{why}")
+    print()
+    if apply:
+        print(f"Done: {result['changed']} articles changed priority. The dashboard shows it on its next refresh.")
+    elif result["changed"]:
+        print(f"{result['changed']} articles would change. Nothing was written; run again with --apply to save it.")
+    else:
+        print("Nothing would change.")
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="omenwatch-admin", description="Local admin commands for OmenWatch.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -182,6 +215,9 @@ def main() -> None:
     reset.add_argument("--clear", action="store_true", help="Remove it instead, and go back to first-run setup (with a new setup code).")
     signout = subparsers.add_parser("sign-out-everyone", help="End every browser sign-in.")
     signout.add_argument("--api-keys", action="store_true", help="Revoke API keys too.")
+    rescore = subparsers.add_parser("rescore", help="Re-rate stored articles with the current rules (shows the change first).")
+    rescore.add_argument("--apply", action="store_true", help="Save the new ratings instead of only showing them.")
+    rescore.add_argument("--fetch", action="store_true", help="Re-read each article page first (slower, needs internet).")
 
     from omenwatch.https_setup import SetupAborted, build_arg_parser, setup_https
     build_arg_parser(subparsers)
@@ -213,6 +249,8 @@ def main() -> None:
         sys.exit(asyncio.run(reset_settings_password(password)))
     if args.command == "sign-out-everyone":
         sys.exit(asyncio.run(sign_out_everyone(args.api_keys)))
+    if args.command == "rescore":
+        sys.exit(asyncio.run(rescore_items(args.apply, args.fetch)))
 
 
 if __name__ == "__main__":

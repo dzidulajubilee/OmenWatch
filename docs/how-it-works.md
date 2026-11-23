@@ -204,16 +204,33 @@ must not be preceded or followed by a letter or digit.
 
 ### 5.1 Wording rating (`scoring.py`)
 
-The title and text are lower-cased and searched in two passes. The first
-phrase found decides the rating, and that phrase is stored.
+Only the title, the feed summary and the first 1,500 characters of the
+article are rated. The rest of the page still feeds indicator and tag
+extraction, but never the rating. When the page is fetched, menus, sidebars,
+"related stories", tag lists, share bars and comments are left out, and the
+text of the `<article>` or `<main>` element is preferred when it has one.
 
-- **High** if any appears: ransomware, zero-day, 0-day, exploited in the
-  wild, actively exploited, under active exploitation, RCE, remote code
-  execution, critical vulnerability, critical flaw, critical bug, critical
-  severity, critical-severity, critical security flaw / vulnerability / bug.
-- **Medium** otherwise, if any appears: a CVE ID, vulnerability, APT, breach,
-  malware, phishing, backdoor, supply chain, data leak.
+Two lists can make an item High:
+
+- **Exploitation:** zero-day, 0-day, exploited in the wild, actively
+  exploited, under active exploitation.
+- **Serious flaw**, counted only when the article names a CVE: RCE, remote
+  code execution, critical vulnerability, critical flaw, critical bug,
+  critical severity, critical-severity, critical security flaw /
+  vulnerability / bug.
+
+A phrase from these lists in the title scores 2 points, and each mention in
+the summary or opening scores 1. **High** needs 2 points, so a title hit or
+two mentions in the text. A single mention in the text, or a serious-flaw
+phrase in an article without a CVE, is **Medium**.
+
+- **Medium** also if any of these appears: a CVE ID, vulnerability,
+  ransomware, APT, breach, malware, phishing, backdoor, supply chain, data
+  leak; or the article names a CVE further down. These words say what an
+  article is about, not how urgent it is.
 - **Low** otherwise.
+
+The deciding phrase is stored and shown as the reason.
 
 Plurals and past tense count (`s`, `es` and `ed` endings). The bare word
 *critical* is deliberately not a High word: "critical infrastructure" and
@@ -230,6 +247,12 @@ Plurals and past tense count (`s`, `es` and `ed` endings). The bare word
 
 As a formula: take the wording rating; if exploited, raise it to at least
 High; if it mentions Our stack, raise it one level (Critical at most).
+
+**Exploited** counts only when the article is about the listed CVE: the CVE
+is in the title, or the article names at most three CVEs. A patch roundup
+naming dozens of CVEs nearly always includes one on the list; it still shows
+the **Exploited** marker, and its reason reads `Mentions CVE-… from CISA's
+list, among N CVEs`, but its priority comes from its wording.
 
 The priority is stored in `items.severity`, which every filter, count,
 webhook threshold and notification threshold uses. The wording rating and
