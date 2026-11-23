@@ -494,6 +494,26 @@ internet access; leave it empty for CISA's official feed.
 **IOC feeds**: lists of indicators published at a URL that fill the IOC
 database. **+ Add IOC feed** asks for:
 
+- *Start from* (new feeds only): pick a known public feed and the form is
+  filled in for you. Test it, then add it; every field can still be changed.
+  Besides the built-in readers below, it offers these lists:
+
+  | List | Gives you |
+  |---|---|
+  | C2IntelFeeds: C2 IPs / C2 domains | Command-and-control servers seen in the last 30 days (a few hundred) |
+  | ThreatView: Cobalt Strike C2 | Cobalt Strike team servers, about 1,200 |
+  | OpenPhish (free feed) | Recent phishing URLs, about 300 |
+  | Emerging Threats: compromised IPs | About 600 hosts seen as compromised |
+  | ThreatView: high-confidence IPs | About 14,000 malicious IPs |
+  | IPsum, level 3 | IPs on at least 3 public blocklists, about 18,000 |
+  | Botvrij.eu: SHA-256 | Hashes from Botvrij.eu's public reports |
+
+  Under **Use with care**: CINS Army and blocklist.de (mostly scanners and
+  brute force: context, rarely a sign of compromise) and Tor exit nodes (not
+  malicious; shows traffic that came through Tor). They get a low confidence
+  so they don't drown out the C2 lists. Check each publisher's terms before
+  relying on its data.
+
 - *Format*: one of the **built-in readers**, which fill in everything else,
   or any plain text or CSV list (below). The built-in readers:
 

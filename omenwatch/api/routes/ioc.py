@@ -52,6 +52,7 @@ from omenwatch.ioc.normalize import (
     normalize_allow_entry,
     refang,
 )
+from omenwatch.ioc.presets import PRESETS
 from omenwatch.ioc.readers import READERS
 from omenwatch.ioc.store import (
     KEEP_EXPIRED_CHOICES,
@@ -560,7 +561,8 @@ async def list_feeds():
     for feed in feeds:
         feed["indicators"] = counts.get(feed["id"], 0)
     return {"feeds": feeds, "manual": counts.get(MANUAL, 0), "promoted": counts.get(PROMOTED, 0),
-            "readers": [r.describe() for r in READERS.values()]}
+            "readers": [r.describe() for r in READERS.values()],
+            "presets": [p.describe() for p in PRESETS.values()]}
 
 
 @ioc_protected_router.post("/api/ioc/feeds/test")

@@ -1,7 +1,9 @@
 """
 Our stack (the watchlist) and CISA's Known Exploited Vulnerabilities.
 """
+import time
 import uuid
+from datetime import date
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -16,11 +18,38 @@ from omenwatch.news.watchlist import entry_terms, rematch_all
 class WatchIn(BaseModel):
     name: str
     aliases: str = ""
+    versions: str = ""      # what we run, e.g. "7.4.3, 7.2.8"; shown to people, never used to lower a priority
+    updated_on: str = ""    # YYYY-MM-DD, when these systems were last updated
 
 
 class WatchEditIn(BaseModel):
     name: str | None = None
     aliases: str | None = None
+    versions: str | None = None
+    updated_on: str | None = None
+
+
+def _clean_versions(versions: str) -> str:
+    parts = [" ".join(v.split()) for v in (versions or "").split(",")]
+    parts = list(dict.fromkeys(v for v in parts if v))
+    if len(parts) > 10:
+        raise HTTPException(400, "Up to 10 versions per entry")
+    if any(len(v) > 40 for v in parts):
+        raise HTTPException(400, "A version can have up to 40 characters")
+    return ",".join(parts)
+
+
+def _clean_updated_on(value: str) -> str:
+    value = (value or "").strip()
+    if not value:
+        return ""
+    try:
+        day = date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(400, "Give the last update as a date, YYYY-MM-DD") from None
+    if day.isoformat() > time.strftime("%Y-%m-%d", time.localtime(time.time() + 86400)):
+        raise HTTPException(400, "The last update can't be in the future")
+    return day.isoformat()
 
 
 def _clean_watch_entry(name: str, aliases: str) -> tuple[str, str]:
@@ -56,7 +85,7 @@ async def list_watchlist():
     """
     db = await get_db()
     try:
-        cur = await db.execute("SELECT id, name, aliases, created_at FROM watchlist ORDER BY name COLLATE NOCASE")
+        cur = await db.execute("SELECT id, name, aliases, versions, updated_on, created_at FROM watchlist ORDER BY name COLLATE NOCASE")
         rows = [dict(r) for r in await cur.fetchall()]
         for row in rows:
             cur = await db.execute(
@@ -72,12 +101,16 @@ async def list_watchlist():
 async def add_watch_entry(entry: WatchIn):
     """Adds an entry and re-checks every stored item, so it applies to history too."""
     name, aliases = _clean_watch_entry(entry.name, entry.aliases)
+    versions, updated_on = _clean_versions(entry.versions), _clean_updated_on(entry.updated_on)
     db = await get_db()
     try:
         if await _watch_name_taken(db, name):
             raise HTTPException(409, f"'{name}' is already on the list")
         wid = str(uuid.uuid4())
-        await db.execute("INSERT INTO watchlist (id, name, aliases) VALUES (?,?,?)", (wid, name, aliases))
+        await db.execute(
+            "INSERT INTO watchlist (id, name, aliases, versions, updated_on) VALUES (?,?,?,?,?)",
+            (wid, name, aliases, versions, updated_on),
+        )
         await db.commit()
         marked = await rematch_all(db)
     finally:
@@ -89,7 +122,7 @@ async def add_watch_entry(entry: WatchIn):
 async def edit_watch_entry(entry_id: str, payload: WatchEditIn):
     db = await get_db()
     try:
-        cur = await db.execute("SELECT name, aliases FROM watchlist WHERE id = ?", (entry_id,))
+        cur = await db.execute("SELECT name, aliases, versions, updated_on FROM watchlist WHERE id = ?", (entry_id,))
         row = await cur.fetchone()
         if not row:
             raise HTTPException(404, "No such entry")
@@ -97,14 +130,44 @@ async def edit_watch_entry(entry_id: str, payload: WatchEditIn):
             payload.name if payload.name is not None else row["name"],
             payload.aliases if payload.aliases is not None else row["aliases"],
         )
+        versions = _clean_versions(payload.versions if payload.versions is not None else row["versions"])
+        updated_on = _clean_updated_on(payload.updated_on if payload.updated_on is not None else row["updated_on"])
         if await _watch_name_taken(db, name, except_id=entry_id):
             raise HTTPException(409, f"'{name}' is already on the list")
-        await db.execute("UPDATE watchlist SET name = ?, aliases = ? WHERE id = ?", (name, aliases, entry_id))
+        await db.execute(
+            "UPDATE watchlist SET name = ?, aliases = ?, versions = ?, updated_on = ? WHERE id = ?",
+            (name, aliases, versions, updated_on, entry_id),
+        )
         await db.commit()
         marked = await rematch_all(db)
     finally:
         await db.close()
     return {"id": entry_id, "items_marked": marked}
+
+
+@router.get("/api/watchlist/context")
+async def watchlist_context(item: str = ""):
+    """
+    Versions and last update of the Our stack entries one item is marked
+    with (the item detail panel). Keyed by item, not by name, so it can't be
+    used to probe the list: the full list stays in Settings. Needs sign-in.
+    """
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT watch_hits FROM items WHERE id = ?", (item,))
+        row = await cur.fetchone()
+        names = [n for n in ((row["watch_hits"] if row else "") or "").split(",") if n][:20]
+        if not names:
+            return []
+        cur = await db.execute(
+            f"SELECT name, versions, updated_on FROM watchlist WHERE name IN ({','.join('?' * len(names))})", names
+        )
+        return [
+            {"name": r["name"], "versions": [v for v in (r["versions"] or "").split(",") if v], "updated_on": r["updated_on"] or ""}
+            for r in await cur.fetchall()
+        ]
+    finally:
+        await db.close()
 
 
 @protected_router.delete("/api/watchlist/{entry_id}")

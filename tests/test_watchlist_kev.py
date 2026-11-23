@@ -154,6 +154,36 @@ def test_public_endpoints_get_counts_not_the_watchlist():
         assert "SecretBox" not in body
 
 
+def test_versions_and_last_update_are_stored_and_validated():
+    wid = client.post("/api/watchlist", json={
+        "name": "FortiGate", "versions": " 7.4.3 ,7.2.8,, 7.4.3", "updated_on": "2026-10-02",
+    }).json()["id"]
+    entry = next(e for e in client.get("/api/watchlist").json() if e["id"] == wid)
+    assert (entry["versions"], entry["updated_on"]) == ("7.4.3,7.2.8", "2026-10-02")
+    # Editing other fields keeps them; an empty string clears them.
+    client.patch(f"/api/watchlist/{wid}", json={"aliases": "FortiOS"})
+    entry = next(e for e in client.get("/api/watchlist").json() if e["id"] == wid)
+    assert (entry["versions"], entry["updated_on"]) == ("7.4.3,7.2.8", "2026-10-02")
+    client.patch(f"/api/watchlist/{wid}", json={"versions": "", "updated_on": ""})
+    entry = next(e for e in client.get("/api/watchlist").json() if e["id"] == wid)
+    assert (entry["versions"], entry["updated_on"]) == ("", "")
+    assert client.post("/api/watchlist", json={"name": "Bad1", "updated_on": "02/10/2026"}).status_code == 400
+    assert client.post("/api/watchlist", json={"name": "Bad2", "updated_on": "2999-01-01"}).status_code == 400
+    assert client.post("/api/watchlist", json={"name": "Bad3", "versions": "x" * 41}).status_code == 400
+    assert client.post("/api/watchlist", json={"name": "Bad4", "versions": ",".join(str(n) for n in range(11))}).status_code == 400
+
+
+def test_item_context_shows_only_the_entries_the_item_names():
+    client.post("/api/watchlist", json={"name": "FortiGate", "versions": "7.4.3", "updated_on": "2026-10-02"})
+    client.post("/api/watchlist", json={"name": "SecretBox", "versions": "9.9"})
+    assert client.get("/api/watchlist/context", params={"item": "a"}).json() == [
+        {"name": "FortiGate", "versions": ["7.4.3"], "updated_on": "2026-10-02"}
+    ]
+    for item in ("b", "nope", ""):
+        assert client.get("/api/watchlist/context", params={"item": item}).json() == []
+    assert "SecretBox" not in client.get("/api/items").text
+
+
 # --------------------------------------------------------------------- KEV
 
 def test_kev_refresh_marks_exploited_items(server):
@@ -166,6 +196,8 @@ def test_kev_refresh_marks_exploited_items(server):
     assert [(d["cve"], d["due_date"], d["ransomware"]) for d in detail] == [("CVE-2099-0001", "2099-01-23", "Known")]
     client.post("/api/watchlist", json={"name": "FortiGate"})
     assert client.get("/api/overview").json()["affects_us"]["exploited"] == 1
+    exploited = client.get("/api/overview", params={"hours": 2160}).json()["exploited"]
+    assert exploited["cves"] == 1 and exploited["cves"] <= exploited["items"]
 
 
 def test_a_failed_refresh_keeps_the_previous_catalog(server):

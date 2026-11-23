@@ -1589,7 +1589,7 @@ function updateShellIndicators(ov) {
   document.getElementById('navSourcesCount').dataset.kind = 'bad';
   setNavCount('navNewCount', adjustedNewCount(ov.new_since, ov.since));
   if (ov.affects_us) setNavCount('navAffectsCount', ov.affects_us.items);
-  if (ov.exploited) setNavCount('navExploitedCount', ov.exploited.items);
+  if (ov.exploited) setNavCount('navExploitedCount', ov.exploited.cves ?? ov.exploited.items);
 }
 
 function formatAge(seconds) {
@@ -1984,7 +1984,12 @@ function renderFeedDetail(panel, i, { force = false } = {}) {
     </div>
     <h3 class="detail-title">${escapeHtml(i.title)}</h3>
     ${whyHtml(i)}
-    ${i.kev_cves.length ? `<div class="detail-flags">
+    ${i.kev_cves.length || i.watch_hits.length ? `<div class="detail-flags">
+      ${i.watch_hits.length ? `<div class="flag-box ours">
+        <strong>Affects us</strong>
+        <span>Mentions ${escapeHtml(i.watch_hits.join(', '))} from Our stack.</span>
+        <span class="flag-box-detail" data-role="ours"></span>
+      </div>` : ''}
       ${i.kev_cves.length ? `<div class="flag-box exploited">
         <strong>Exploited in the wild</strong>
         <span>${escapeHtml(i.kev_cves.join(', '))} ${i.kev_cves.length === 1 ? 'is' : 'are'} on CISA's Known Exploited Vulnerabilities list.</span>
@@ -2034,15 +2039,48 @@ function renderFeedDetail(panel, i, { force = false } = {}) {
     btn.onclick = () => openMention({ cve: 'cves', ip: 'ips', hash: 'hashes', email: 'emails' }[btn.dataset.iocType], btn.dataset.iocValue);
   });
   loadRelated(panel, i);
-  if (i.kev_cves.length) loadKevDetail(panel, i);
+  const kev = i.kev_cves.length ? loadKevDetail(panel, i) : Promise.resolve([]);
+  if (i.watch_hits.length) loadStackContext(panel, i, kev);
+}
+
+// What we run, for the Affects us box. Information only: when a CVE reached
+// CISA's list after an entry was last updated, say the fix may be missing.
+async function loadStackContext(panel, i, kevPromise) {
+  let entries, kev;
+  try {
+    const res = await fetch('/api/watchlist/context?item=' + encodeURIComponent(i.id));
+    if (!res.ok) return;
+    [entries, kev] = await Promise.all([res.json(), kevPromise.catch(() => [])]);
+  } catch (e) { return; }
+  if (panel.shownId !== i.id) return;
+  const el = document.getElementById(panel.detailId).querySelector('[data-role="ours"]');
+  if (!el) return;
+  const lines = [];
+  for (const e of entries) {
+    if (!e.versions.length && !e.updated_on) continue;
+    const parts = [];
+    if (e.versions.length) parts.push(`we run ${e.versions.join(', ')}`);
+    if (e.updated_on) {
+      const age = daysSince(e.updated_on);
+      parts.push(`last updated ${fmtDay(e.updated_on)}${age > STACK_STALE_DAYS ? ', over six months ago' : ''}`);
+    }
+    let line = `${e.name}: ${parts.join(', ')}.`;
+    const newer = e.updated_on ? kev.filter(k => k.date_added && k.date_added > e.updated_on) : [];
+    if (newer.length) {
+      line += ` ${newer.map(k => k.cve).join(', ')} ${newer.length === 1 ? 'was' : 'were'} added to CISA's list after that update: check the fix is installed.`;
+    }
+    lines.push(line);
+  }
+  el.textContent = lines.join(' ');
 }
 
 async function loadKevDetail(panel, i) {
   const entries = await (await fetch('/api/kev?cves=' + encodeURIComponent(i.kev_cves.join(',')))).json();
-  if (panel.shownId !== i.id) return;
+  if (panel.shownId !== i.id) return entries;
   const el = document.getElementById(panel.detailId).querySelector('[data-role="kev"]');
-  const day = d => (d ? new Date(d + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '?');
+  const day = d => (d ? fmtDay(d) : '?');
   el.textContent = entries.map(e => `${e.cve}${e.name ? `, ${e.name}` : ''}: added ${day(e.date_added)}, CISA deadline ${day(e.due_date)}${e.ransomware === 'Known' ? ', used in ransomware campaigns' : ''}.`).join(' ');
+  return entries;
 }
 
 // Correlation (2.0): what the IOC database and CISA's list know about each
@@ -2774,9 +2812,27 @@ function resetStackForm() {
   stackEditingId = null;
   document.getElementById('stackName').value = '';
   document.getElementById('stackAliases').value = '';
+  document.getElementById('stackVersions').value = '';
+  document.getElementById('stackUpdated').value = '';
   document.getElementById('stackSaveBtn').textContent = 'Add';
   document.getElementById('stackCancelBtn').hidden = true;
   document.querySelectorAll('.stack-row.editing').forEach(r => r.classList.remove('editing'));
+}
+
+// Our stack versions and last update. An entry last updated more than this
+// long ago is flagged as possibly out of date.
+const STACK_STALE_DAYS = 180;
+const fmtDay = d => new Date(d + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+const daysSince = d => Math.floor((Date.now() - new Date(d + 'T00:00:00').getTime()) / 86400000);
+
+function stackVersionHtml(e) {
+  const versions = (e.versions || '').split(',').filter(Boolean).join(', ');
+  if (!versions && !e.updated_on) return '<span class="muted">—</span>';
+  const stale = e.updated_on && daysSince(e.updated_on) > STACK_STALE_DAYS;
+  const when = e.updated_on
+    ? `<span class="${stale ? 'stale' : 'muted'}" title="${stale ? 'Last updated over six months ago: check the version is still right' : 'Last updated'}">Updated ${escapeHtml(fmtDay(e.updated_on))}</span>`
+    : '';
+  return `${versions ? `<span>${escapeHtml(versions)}</span>` : ''}${when}`;
 }
 
 async function loadStackSettings() {
@@ -2785,10 +2841,11 @@ async function loadStackSettings() {
   const entries = await res.json();
   const list = document.getElementById('stackList');
   list.innerHTML = entries.length
-    ? '<div class="stack-row stack-head"><span>Name</span><span>Also matches</span><span class="num">Items</span><span></span></div>' +
+    ? '<div class="stack-row stack-head"><span>Name</span><span>Also matches</span><span>Version</span><span class="num">Items</span><span></span></div>' +
       entries.map(e => `<div class="stack-row${e.id === stackEditingId ? ' editing' : ''}" data-id="${escapeAttr(e.id)}">
         <span class="stack-name">${escapeHtml(e.name)}</span>
         <span class="stack-aliases">${e.aliases ? escapeHtml(e.aliases.split(',').join(', ')) : '<span class="muted">—</span>'}</span>
+        <span class="stack-version">${stackVersionHtml(e)}</span>
         <span class="num" title="Stored items that mention it">${e.items}</span>
         <span class="stack-actions">
           <button type="button" class="row-icon" data-action="edit" aria-label="Edit ${escapeAttr(e.name)}" title="Edit">${EDIT_ICON}</button>
@@ -2802,6 +2859,8 @@ async function loadStackSettings() {
       stackEditingId = entry.id;
       document.getElementById('stackName').value = entry.name;
       document.getElementById('stackAliases').value = entry.aliases ? entry.aliases.split(',').join(', ') : '';
+      document.getElementById('stackVersions').value = entry.versions ? entry.versions.split(',').join(', ') : '';
+      document.getElementById('stackUpdated').value = entry.updated_on || '';
       document.getElementById('stackSaveBtn').textContent = 'Save changes';
       document.getElementById('stackCancelBtn').hidden = false;
       list.querySelectorAll('.stack-row').forEach(r => r.classList.toggle('editing', r.dataset.id === entry.id));
@@ -2845,12 +2904,14 @@ async function loadStackSuggestions(entries) {
 async function saveStackEntry() {
   const name = document.getElementById('stackName').value.trim();
   const aliases = document.getElementById('stackAliases').value;
+  const versions = document.getElementById('stackVersions').value;
+  const updated_on = document.getElementById('stackUpdated').value;
   if (!name) { setStackResult('Give the entry a name.', true); document.getElementById('stackName').focus(); return; }
   const btn = document.getElementById('stackSaveBtn');
   btn.disabled = true;
   const res = await fetch(stackEditingId ? '/api/watchlist/' + stackEditingId : '/api/watchlist', {
     method: stackEditingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, aliases }),
+    body: JSON.stringify({ name, aliases, versions, updated_on }),
   });
   btn.disabled = false;
   const out = await res.json().catch(() => ({}));
@@ -2862,7 +2923,7 @@ async function saveStackEntry() {
 }
 document.getElementById('stackSaveBtn').addEventListener('click', saveStackEntry);
 document.getElementById('stackCancelBtn').addEventListener('click', () => { resetStackForm(); setStackResult(''); });
-['stackName', 'stackAliases'].forEach(id => document.getElementById(id).addEventListener('keydown', (e) => {
+['stackName', 'stackAliases', 'stackVersions', 'stackUpdated'].forEach(id => document.getElementById(id).addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); saveStackEntry(); }
 }));
 

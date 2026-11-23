@@ -72,7 +72,8 @@ fresh install shows exactly what you configure.
   versioned lookup API (`/api/v1`: lookup, export with incremental `since`,
   health) with their own **SIEM keys**, which can't reach anything else.
   Built-in readers for ThreatFox, URLhaus, MalwareBazaar, Feodo Tracker,
-  SSLBL and the AbuseIPDB blacklist; promote values from the news with one
+  SSLBL and the AbuseIPDB blacklist, plus one-click presets for other public
+  lists (C2IntelFeeds, OpenPhish, Emerging Threats, IPsum…); promote values from the news with one
   click; see which indicators your SIEMs actually looked up, and which
   articles mention each one.
   It lives in its own database file, so a large import never slows the
@@ -405,6 +406,11 @@ because of one word somewhere on the page.
   title, or two mentions, make it High.
 - **Patch roundups no longer turn High** just because one of their many CVEs
   is on CISA's list. That only counts when the article is about that CVE.
+- **Ready-made IOC feeds.** Add IOC feed now has a **Start from** list: the
+  six built-in readers plus eleven public lists I've checked, such as
+  C2IntelFeeds, ThreatView's Cobalt Strike C2 list, OpenPhish, Emerging
+  Threats and IPsum. Picking one fills in the form; test it, then add it.
+  Noisy lists (scanners, brute force, Tor exits) sit under "Use with care".
 - **`omenwatch-admin rescore`** shows how many articles would change
   priority, with examples, before anything is saved. Add `--apply` to save
   it, and `--fetch` to re-read the article pages first.

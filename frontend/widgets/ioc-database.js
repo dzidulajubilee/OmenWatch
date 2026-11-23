@@ -574,13 +574,61 @@ document.getElementById('iocPromoteBtn').onclick = () => {
 let iocFeeds = [];
 let iocFeedEditing = null;
 let iocReaders = [];      // built-in readers for well-known feeds (omenwatch/ioc/readers.py)
+let iocPresets = [];      // known plain text and CSV lists (omenwatch/ioc/presets.py)
 const readerFor = format => iocReaders.find(r => r.name === format);
 
-function setReaders(readers) {
+function setReaders(readers, presets) {
   iocReaders = readers || [];
-  document.getElementById('iocFeedReaders').innerHTML = iocReaders
-    .map(r => `<option value="${escapeAttr(r.name)}">${escapeHtml(r.label)}</option>`).join('');
+  iocPresets = presets || [];
+  const options = (list, prefix) => list
+    .map(r => `<option value="${prefix}${escapeAttr(r.name)}">${escapeHtml(r.label)}</option>`).join('');
+  document.getElementById('iocFeedReaders').innerHTML = options(iocReaders, '');
+  document.getElementById('iocFeedPresetReaders').innerHTML = options(iocReaders, 'reader:');
+  document.getElementById('iocFeedPresetLists').innerHTML = options(iocPresets.filter(p => p.group !== 'Use with care'), 'list:');
+  document.getElementById('iocFeedPresetCareful').innerHTML = options(iocPresets.filter(p => p.group === 'Use with care'), 'list:');
 }
+
+function setFeedInterval(seconds) {
+  const interval = document.getElementById('iocFeedInterval');
+  if (![...interval.options].some(o => o.value === String(seconds))) {
+    interval.insertAdjacentHTML('beforeend', `<option value="${seconds}">${escapeHtml(formatInterval(seconds))}</option>`);
+  }
+  interval.value = String(seconds);
+}
+
+// "Start from": fill the form from a built-in reader or a known list.
+document.getElementById('iocFeedPreset').addEventListener('change', (e) => {
+  const [kind, name] = e.target.value.split(':');
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  ['iocFeedName', 'iocFeedUrl', 'iocFeedValueCol', 'iocFeedMalwareCol', 'iocFeedDateCol', 'iocFeedThreat', 'iocFeedKeyHeader']
+    .forEach(id => set(id, ''));
+  document.getElementById('iocFeedTestResult').hidden = true;
+  if (kind === 'reader') {
+    set('iocFeedFormat', name);
+    syncFeedFormat(true);
+    return;
+  }
+  const preset = iocPresets.find(p => p.name === name);
+  if (!preset) {
+    set('iocFeedFormat', 'text');
+    syncFeedFormat();
+    return;
+  }
+  set('iocFeedName', preset.label);
+  set('iocFeedUrl', preset.url);
+  set('iocFeedFormat', preset.format);
+  set('iocFeedType', preset.default_type);
+  set('iocFeedValueCol', preset.value_column);
+  set('iocFeedConfidence', String(preset.confidence));
+  set('iocFeedThreat', preset.threat_type);
+  setFeedInterval(preset.interval);
+  document.getElementById('iocFeedSnapshot').checked = preset.snapshot;
+  syncFeedFormat();
+  const note = document.getElementById('iocFeedReaderNote');
+  note.hidden = false;
+  note.innerHTML = `<strong>${escapeHtml(preset.label)}</strong>${escapeHtml(preset.gives)}.
+    <div class="hint">Check the <a href="${safeHref(preset.terms_url)}" target="_blank" rel="noopener">publisher's terms</a> before relying on it.</div>`;
+});
 
 function feedState(f) {
   if (!f.enabled) return 'paused';
@@ -616,9 +664,9 @@ async function loadIocFeedSettings() {
   }
   const data = await res.json();
   iocFeeds = data.feeds;
-  setReaders(data.readers);
+  setReaders(data.readers, data.presets);
   if (!iocFeeds.length) {
-    table.innerHTML = `<div class="card-empty"><strong>No IOC feeds yet</strong>Pick a built-in reader (ThreatFox, URLhaus, MalwareBazaar, Feodo Tracker, SSLBL, AbuseIPDB), or paste the URL of any plain text or CSV list, and test it before saving.${data.manual ? ` ${plural(data.manual, 'indicator was', 'indicators were')} added by hand.` : ''}</div>`;
+    table.innerHTML = `<div class="card-empty"><strong>No IOC feeds yet</strong>Add IOC feed and pick a known feed under Start from (ThreatFox, URLhaus, Feodo Tracker, C2IntelFeeds, OpenPhish and more), or paste the URL of any plain text or CSV list, and test it before saving.${data.manual ? ` ${plural(data.manual, 'indicator was', 'indicators were')} added by hand.` : ''}</div>`;
     return;
   }
   const label = { healthy: 'Healthy', failing: 'Failing', pending: 'Waiting', paused: 'Paused' };
@@ -707,9 +755,14 @@ async function openIocFeedModal(feed) {
   if (!(await ensureSettingsUnlocked(() => openIocFeedModal(feed)))) return;
   if (!iocReaders.length) {
     const res = await fetch('/api/ioc/feeds');
-    if (res.ok) setReaders((await res.json()).readers);
+    if (res.ok) {
+      const data = await res.json();
+      setReaders(data.readers, data.presets);
+    }
   }
   iocFeedEditing = feed;
+  document.getElementById('iocFeedPreset').value = '';
+  document.getElementById('iocFeedPresetField').hidden = !!feed;
   const defaults = { format: 'text', default_type: '', confidence: 75, interval_seconds: 21600, lifetime_days: 0, max_mb: 30 };
   FEED_FIELDS.forEach(([id, key]) => {
     const v = feed ? feed[key] : defaults[key];
@@ -759,11 +812,7 @@ function syncFeedFormat(applyDefaults = false) {
   if (isDefault('iocFeedUrl', 'url')) document.getElementById('iocFeedUrl').value = reader.url;
   if (isDefault('iocFeedKeyHeader', 'key_header')) document.getElementById('iocFeedKeyHeader').value = reader.key_header;
   if (isDefault('iocFeedThreat', 'threat_type')) document.getElementById('iocFeedThreat').value = reader.threat_type;
-  const interval = document.getElementById('iocFeedInterval');
-  if (![...interval.options].some(o => o.value === String(reader.interval))) {
-    interval.insertAdjacentHTML('beforeend', `<option value="${reader.interval}">${escapeHtml(formatInterval(reader.interval))}</option>`);
-  }
-  interval.value = String(reader.interval);
+  setFeedInterval(reader.interval);
   document.getElementById('iocFeedSnapshot').checked = reader.snapshot;
   document.getElementById('iocFeedConfidence').value = String(reader.confidence);
   document.getElementById('iocFeedType').value = '';

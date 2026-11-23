@@ -326,6 +326,10 @@ inside it. The news side (RSS sources, items, the Indicators tab,
   existing check (dashboard routes, the WebSocket, sign-in status) rejects
   SIEM keys without knowing they exist, and `require_siem_key` accepts
   nothing else. Ordinary API keys keep exactly their old access.
+- **Presets** (`ioc/presets.py`, 2.0.1): known public text and CSV lists
+  offered under "Start from" in the Add IOC feed form. A preset only fills in
+  the form (URL, format, type, CSV column, interval, confidence); it is read
+  by the ordinary text and CSV parser.
 - **Built-in readers** (`ioc/readers.py`, 1.1.0): ThreatFox, URLhaus,
   MalwareBazaar, Feodo Tracker, SSLBL and the AbuseIPDB blacklist, each one
   function from the publisher's export to `Arrival`s, picked as a feed's

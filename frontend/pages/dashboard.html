@@ -721,15 +721,23 @@
                   <label for="stackAliases">Also match <span class="muted">(optional, separate with commas)</span></label>
                   <input type="text" class="text-input" id="stackAliases" placeholder="e.g. FortiOS, Fortinet firewall">
                 </div>
+                <div class="stack-field">
+                  <label for="stackVersions">Version we run <span class="muted">(optional)</span></label>
+                  <input type="text" class="text-input" id="stackVersions" maxlength="200" placeholder="e.g. 7.4.3, 7.2.8">
+                </div>
+                <div class="stack-field">
+                  <label for="stackUpdated">Last updated <span class="muted">(optional)</span></label>
+                  <input type="date" class="text-input date-input" id="stackUpdated">
+                </div>
                 <button type="button" class="btn btn-primary" id="stackSaveBtn">Add</button>
                 <button type="button" class="btn" id="stackCancelBtn" hidden>Cancel</button>
               </div>
-              <p class="set-hint">Matched as whole words in each item's title and summary, ignoring upper and lower case. Short all-capital names such as APC must match exactly. Every stored item is checked again when the list changes.</p>
+              <p class="set-hint">Matched as whole words in each item's title and summary, ignoring upper and lower case. Short all-capital names such as APC must match exactly. Every stored item is checked again when the list changes. The version and last update are shown on the items an entry marks, to help you decide; they never change an item's priority.</p>
               <p class="set-result" id="stackResult" role="status"></p>
               <div class="stack-suggest" id="stackSuggest"></div>
             </div>
             <div class="stack-list" id="stackList"></div>
-            <p class="set-hint stack-privacy">The list itself stays in Settings, but anyone who can open the dashboard sees which items are marked and why. Keep OmenWatch on a network only your team can reach.</p>
+            <p class="set-hint stack-privacy">The list itself stays in Settings, but anyone who can open the dashboard sees which items are marked and why, and the version and last update of the entries an item is marked with. Keep OmenWatch on a network only your team can reach.</p>
           </div>
 
           <div class="settings-card" id="set-kev">
@@ -1208,6 +1216,16 @@
 <div class="modal-overlay" id="iocFeedOverlay">
   <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="iocFeedTitle">
     <h3 id="iocFeedTitle">Add IOC feed</h3>
+    <div class="field" id="iocFeedPresetField">
+      <label for="iocFeedPreset">Start from</label>
+      <select id="iocFeedPreset">
+        <option value="">Blank form</option>
+        <optgroup label="Built-in readers" id="iocFeedPresetReaders"></optgroup>
+        <optgroup label="Lists" id="iocFeedPresetLists"></optgroup>
+        <optgroup label="Use with care" id="iocFeedPresetCareful"></optgroup>
+      </select>
+      <div class="hint">Fills in the form for a known public feed. Test it, then add it.</div>
+    </div>
     <div class="field">
       <label for="iocFeedName">Name</label>
       <input type="text" id="iocFeedName" maxlength="80" placeholder="e.g. Feodo Tracker C2 IPs">
@@ -1312,6 +1330,7 @@
 <datalist id="iocThreatTypes">
   <option value="c2"><option value="botnet"><option value="phishing"><option value="malware_download">
   <option value="payload"><option value="scanner"><option value="brute_force"><option value="spam"><option value="exploit">
+  <option value="abuse"><option value="compromised"><option value="malicious"><option value="tor_exit">
 </datalist>
 
 <script src="/static/components/icon.js?v={{CACHEBUST}}"></script>

@@ -594,6 +594,9 @@ async def get_overview(hours: int = 24, since: float | None = None):
             f"SELECT COUNT(*) FROM items WHERE watch_hits != '' AND kev_cves != '' AND {_EFFECTIVE_TS} > ?", (window_start,)
         )
         exploited = await scalar(f"SELECT COUNT(*) FROM items WHERE kev_cves != '' AND {_EFFECTIVE_TS} > ?", (window_start,))
+        # The menu badge counts distinct exploited CVEs, not the articles about them.
+        cur = await db.execute(f"SELECT kev_cves FROM items WHERE kev_cves != '' AND {_EFFECTIVE_TS} > ?", (window_start,))
+        exploited_cves = len({c.strip().upper() for (v,) in await cur.fetchall() for c in (v or "").split(",") if c.strip()})
         watchlist_size = await scalar("SELECT COUNT(*) FROM watchlist")
         kev_size = await scalar("SELECT COUNT(*) FROM kev")
         kev_off = await scalar("SELECT COUNT(*) FROM settings WHERE key = 'kev_enabled' AND value = '0'")
@@ -671,7 +674,7 @@ async def get_overview(hours: int = 24, since: float | None = None):
         "new_since": new_since,
         # Counts only: the watchlist itself is Settings-only.
         "affects_us": {"items": affects_us, "exploited": affects_us_exploited, "watchlist": watchlist_size},
-        "exploited": {"items": exploited, "catalog": kev_size, "enabled": not kev_off},
+        "exploited": {"items": exploited, "cves": exploited_cves, "catalog": kev_size, "enabled": not kev_off},
         "published_today": published_today,
         "published_week": published_week,
         "indicators_week": indicators_week,

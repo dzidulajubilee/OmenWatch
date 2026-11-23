@@ -41,4 +41,12 @@ async def item_entities(db) -> None:
     await db.executescript(BACKFILL)
 
 
-STEPS = [baseline, item_entities]
+async def watchlist_versions(db) -> None:
+    """our stack: optional versions run and the date the entry was last updated"""
+    await add_missing_columns(db, [
+        ("watchlist", "versions", "TEXT DEFAULT ''"),     # comma-separated, as typed
+        ("watchlist", "updated_on", "TEXT DEFAULT ''"),   # YYYY-MM-DD, when the systems were last updated
+    ])
+
+
+STEPS = [baseline, item_entities, watchlist_versions]

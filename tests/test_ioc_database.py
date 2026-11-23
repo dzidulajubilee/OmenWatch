@@ -273,6 +273,9 @@ def test_fresh_install_has_no_ioc_feeds_and_an_empty_database():
     feeds = client.get("/api/ioc/feeds").json()
     assert (feeds["feeds"], feeds["manual"], feeds["promoted"]) == ([], 0, 0)   # built-in readers are offered, none added
     assert len(feeds["readers"]) == 6
+    presets = {p["name"]: p for p in feeds["presets"]}
+    assert presets["c2intel-ips"]["format"] == "csv" and presets["c2intel-ips"]["value_column"] == "ip"
+    assert presets["tor-exits"]["group"] == "Use with care"
     assert client.get("/api/ioc/summary").json()["active"] == 0
 
 
@@ -450,3 +453,22 @@ def test_cdb_export_is_a_wazuh_list():
     lines = sorted(client.get("/api/v1/export", params={"format": "cdb"}).text.splitlines())
     assert lines == ['"2606:4700::1111":80', '"http://evil.example:8080/x":80', "8.8.8.8:80"]
     assert client.get("/api/v1/export", params={"format": "cdb", "since": "0"}).status_code == 400
+
+
+def test_presets_are_readable_lists():
+    from omenwatch.ioc.normalize import TYPES
+    from omenwatch.ioc.parsing import parse_list
+    from omenwatch.ioc.presets import PRESETS
+    from omenwatch.ioc.readers import READERS
+
+    samples = {"ipv4": "18.8.8.81", "domain": "c2.example.com", "url": "http://phish.example.net/login",
+               "sha256": "a" * 64, "": "18.8.8.82"}
+    for preset in PRESETS.values():
+        assert preset.name not in READERS
+        assert preset.url.startswith("https://") and preset.terms_url.startswith("https://")
+        assert preset.format in ("text", "csv") and (not preset.default_type or preset.default_type in TYPES)
+        assert 0 <= preset.confidence <= 100 and preset.interval >= 900
+        value = samples[preset.default_type]
+        text = f"# comment\n{preset.value_column},note\n{value},x\n" if preset.format == "csv" else f"# comment\n{value}\n"
+        result = parse_list(text, preset.format, preset.default_type, preset.value_column)
+        assert result.rejected == 0, preset.name
